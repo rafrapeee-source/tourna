@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Liquipedia Round Robin Tournament</title>
+  <title>Liquipedia Round Robin Seeding Stage</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
+      /* Liquipedia Dark Palette */
       --lp-bg: #14181d;
       --lp-card-bg: #1c2228;
       --lp-header-bg: #262e37;
@@ -18,7 +19,8 @@
       --lp-row-alt: #171c22;
       --lp-input-bg: #0d1117;
       --lp-danger: #f85149;
-      --lp-live: #2ea043;
+      --lp-green: #3fb950;
+      --lp-gold: #f0883e;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,7 +42,7 @@
       color: var(--lp-primary-blue);
       border-bottom: 2px solid var(--lp-primary-blue);
       padding-bottom: 6px;
-      margin-top: 24px;
+      margin-top: 28px;
       margin-bottom: 16px;
       letter-spacing: 0.5px;
       display: flex;
@@ -52,12 +54,11 @@
     .section-title:first-child { margin-top: 0; }
     .section-title span.sub { font-size: 12px; color: var(--lp-text-muted); font-weight: normal; }
 
-    /* ================= 5-TEAM GRID ================= */
+    /* ================= 5-TEAM CARDS ================= */
     .teams-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 14px;
-      margin-bottom: 30px;
     }
 
     .team-card {
@@ -164,11 +165,69 @@
     .role-logo { width: 18px; height: 18px; object-fit: contain; }
     .player-ign { font-size: 12px; font-weight: 700; color: var(--lp-text-main); }
 
-    /* ================= ROUND ROBIN MATCHES ================= */
-    .rounds-container {
+    /* ================= SPLIT STAGE SECTION ================= */
+    .stage-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 16px;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .stage-layout { grid-template-columns: 1fr; }
+    }
+
+    /* STANDINGS TABLE */
+    .standings-card {
+      background: var(--lp-card-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .standings-table th {
+      background: var(--lp-header-bg);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--lp-text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--lp-border);
+    }
+
+    .standings-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+    }
+
+    .standings-table tr:nth-child(even) { background: var(--lp-row-alt); }
+
+    .seed-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .seed-1 { background: rgba(240, 136, 62, 0.2); color: #f0883e; border: 1px solid #f0883e; }
+    .seed-2 { background: rgba(88, 166, 255, 0.2); color: #58a6ff; border: 1px solid #58a6ff; }
+    .seed-3 { background: rgba(63, 185, 80, 0.2); color: #3fb950; border: 1px solid #3fb950; }
+    .seed-4 { background: rgba(139, 148, 158, 0.15); color: #c9d1d9; border: 1px solid var(--lp-border); }
+    .seed-5 { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+
+    /* MATCHES GRID */
+    .rounds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
     }
 
     .round-card {
@@ -180,9 +239,9 @@
 
     .round-header {
       background: var(--lp-header-bg);
-      padding: 8px 12px;
+      padding: 6px 10px;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       color: var(--lp-primary-blue);
       border-bottom: 1px solid var(--lp-border);
       display: flex;
@@ -193,9 +252,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 14px;
+      padding: 8px 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      background: var(--lp-card-bg);
     }
 
     .match-row:nth-child(even) { background: var(--lp-row-alt); }
@@ -209,29 +267,28 @@
     .match-team.team-a { text-align: left; }
     .match-team.team-b { text-align: right; }
 
+    .match-team.winner { color: var(--lp-green); }
+    .match-team.loser { color: var(--lp-text-muted); opacity: 0.6; }
+
     .match-score-pill {
       background: var(--lp-header-bg);
       border: 1px solid var(--lp-border);
-      border-radius: 4px;
-      padding: 3px 10px;
+      border-radius: 3px;
+      padding: 2px 8px;
       font-weight: 800;
-      font-size: 13px;
-      min-width: 55px;
+      font-size: 12px;
+      min-width: 42px;
       text-align: center;
-      margin: 0 10px;
+      margin: 0 8px;
     }
 
     .status-badge {
-      font-size: 9px;
-      padding: 2px 6px;
-      border-radius: 3px;
+      font-size: 8px;
+      padding: 1px 4px;
+      border-radius: 2px;
       font-weight: bold;
-      text-transform: uppercase;
     }
-
-    .status-UPCOMING { color: var(--lp-text-muted); border: 1px solid var(--lp-border); }
     .status-LIVE { background: rgba(46, 160, 67, 0.2); color: #3fb950; border: 1px solid #2ea043; }
-    .status-COMPLETED { background: rgba(88, 166, 255, 0.15); color: var(--lp-primary-blue); }
 
     /* ================= ADMIN MODAL ================= */
     .admin-modal-overlay {
@@ -319,19 +376,42 @@
 
   <div class="container">
     
-    <!-- 1. TEAMS SECTION (5 TEAMS) -->
+    <!-- 1. 5 TEAMS ROW -->
     <div class="section-title" id="pageTitle" title="Double click or press Ctrl+Shift+A for Admin Panel">
       <span>Participating Teams</span>
       <span class="sub">Hover over a team to view active roster</span>
     </div>
     <div class="teams-grid" id="teamsContainer"></div>
 
-    <!-- 2. ROUND ROBIN MATCHES -->
+    <!-- 2. SEEDING STAGE (STANDINGS + BO1 MATCHES) -->
     <div class="section-title">
-      <span>Round Robin Stage</span>
-      <span class="sub">5 Rounds • Single Round Robin</span>
+      <span>Round Robin Seeding Stage (Best of 1)</span>
+      <span class="sub">Top 1 to Top 5 Seeding Determination</span>
     </div>
-    <div class="rounds-container" id="roundsContainer"></div>
+
+    <div class="stage-layout">
+      
+      <!-- LEFT: LIVE SEEDING STANDINGS TABLE -->
+      <div class="standings-card">
+        <table class="standings-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">Seed</th>
+              <th>Team</th>
+              <th style="text-align: center; width: 60px;">W - L</th>
+              <th style="text-align: right; width: 60px;">Win %</th>
+            </tr>
+          </thead>
+          <tbody id="standingsTableBody">
+            <!-- Rendered live via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- RIGHT: 5 ROUNDS BO1 MATCHES -->
+      <div class="rounds-grid" id="roundsContainer"></div>
+
+    </div>
 
   </div>
 
@@ -339,7 +419,7 @@
   <div class="admin-modal-overlay" id="adminModal">
     <div class="admin-modal">
       <div class="admin-header">
-        <h2>Tournament Manager</h2>
+        <h2>Tournament Manager (Bo1 Round Robin)</h2>
         <button class="admin-close" id="adminCloseBtn">&times;</button>
       </div>
 
@@ -349,8 +429,8 @@
       </div>
 
       <div class="admin-tabs">
-        <button class="tab-btn active" id="tabTeamsBtn">Manage Teams (Max 5)</button>
-        <button class="tab-btn" id="tabMatchesBtn">Manage Matches & Scores</button>
+        <button class="tab-btn active" id="tabTeamsBtn">Manage 5 Teams</button>
+        <button class="tab-btn" id="tabMatchesBtn">Manage Bo1 Matches & Scores</button>
       </div>
 
       <!-- TAB 1: TEAMS -->
@@ -382,35 +462,32 @@
         </div>
       </div>
 
-      <!-- TAB 2: MATCHES -->
+      <!-- TAB 2: BO1 MATCHES -->
       <div id="tabMatchesSection" style="display:none;">
         <div style="margin-bottom:14px;">
-          <button class="btn btn-primary" id="btnGenSchedule">Generate / Reset 5-Team Schedule</button>
+          <button class="btn btn-primary" id="btnGenSchedule">Generate / Reset 5-Team Bo1 Schedule</button>
         </div>
         <div class="form-group">
           <label>Select Match</label>
           <select class="form-control" id="adminSelectMatch"></select>
         </div>
-        <div style="display:flex; gap:10px; margin-bottom:10px;">
-          <div class="form-group" style="flex:1;">
-            <label id="lblScoreA">Score Team A</label>
-            <input type="number" class="form-control" id="matchScoreA" min="0" value="0">
-          </div>
-          <div class="form-group" style="flex:1;">
-            <label id="lblScoreB">Score Team B</label>
-            <input type="number" class="form-control" id="matchScoreB" min="0" value="0">
+
+        <div class="form-group">
+          <label>Quick Bo1 Outcome</label>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" id="btnWinA" style="flex:1;">Team A Wins (1 - 0)</button>
+            <button class="btn btn-secondary" id="btnWinB" style="flex:1;">Team B Wins (0 - 1)</button>
+            <button class="btn btn-secondary" id="btnResetMatch">Reset (0 - 0)</button>
           </div>
         </div>
-        <div class="form-group">
+
+        <div class="form-group" style="margin-top:10px;">
           <label>Status</label>
           <select class="form-control" id="matchStatus">
             <option value="UPCOMING">UPCOMING</option>
             <option value="LIVE">LIVE</option>
             <option value="COMPLETED">COMPLETED</option>
           </select>
-        </div>
-        <div style="text-align:right; margin-top:14px;">
-          <button class="btn btn-primary" id="btnSaveMatch">Update Score</button>
         </div>
       </div>
 
@@ -431,7 +508,6 @@
       { key: "sixthMan", name: "6th Man", logo: "assets/sub.svg" }
     ];
 
-    // Fetch Teams & Matches
     async function loadAllData() {
       try {
         const [teamsRes, matchesRes] = await Promise.all([
@@ -441,13 +517,14 @@
         teamsData = await teamsRes.json();
         matchesData = await matchesRes.json();
         render5Teams();
+        renderStandings();
         renderRoundRobin();
       } catch (err) {
-        console.error("Error loading data:", err);
+        console.error("Error loading tournament data:", err);
       }
     }
 
-    // Render 5 Team Slots
+    // 1. Render 5 Team Cards
     function render5Teams() {
       const container = document.getElementById('teamsContainer');
       container.innerHTML = '';
@@ -493,7 +570,66 @@
       }
     }
 
-    // Render Round Robin 5 Rounds
+    // 2. Render Live Seeding Standings (Top 1 to Top 5)
+    function renderStandings() {
+      const tbody = document.getElementById('standingsTableBody');
+      tbody.innerHTML = '';
+
+      // Initialize team stats
+      const statsMap = {};
+      teamsData.forEach(t => {
+        statsMap[t._id] = { team: t, wins: 0, losses: 0, played: 0 };
+      });
+
+      // Calculate from completed Bo1 matches
+      matchesData.forEach(m => {
+        if (m.status === 'COMPLETED' && m.teamA && m.teamB) {
+          const idA = m.teamA._id || m.teamA;
+          const idB = m.teamB._id || m.teamB;
+
+          if (statsMap[idA] && statsMap[idB]) {
+            statsMap[idA].played++;
+            statsMap[idB].played++;
+            if (m.scoreA > m.scoreB) {
+              statsMap[idA].wins++;
+              statsMap[idB].losses++;
+            } else if (m.scoreB > m.scoreA) {
+              statsMap[idB].wins++;
+              statsMap[idA].losses++;
+            }
+          }
+        }
+      });
+
+      // Sort by Wins desc, then Losses asc
+      const sortedStandings = Object.values(statsMap).sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return a.losses - b.losses;
+      });
+
+      for (let i = 0; i < 5; i++) {
+        const item = sortedStandings[i];
+        const seedNumber = i + 1;
+        const winRate = item && item.played > 0 ? Math.round((item.wins / item.played) * 100) : 0;
+
+        tbody.innerHTML += `
+          <tr>
+            <td><span class="seed-badge seed-${seedNumber}">#${seedNumber} Seed</span></td>
+            <td style="font-weight: 700;">
+              ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span> <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
+            </td>
+            <td style="text-align: center; font-weight: 800;">
+              ${item ? `<span style="color:var(--lp-green);">${item.wins}</span> - <span style="color:var(--lp-danger);">${item.losses}</span>` : '0 - 0'}
+            </td>
+            <td style="text-align: right; color:var(--lp-text-muted); font-weight: 600;">
+              ${winRate}%
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // 3. Render 5 Rounds of Bo1 Matches
     function renderRoundRobin() {
       const container = document.getElementById('roundsContainer');
       container.innerHTML = '';
@@ -513,12 +649,14 @@
           const tagA = m.teamA ? m.teamA.tag : "TBD";
           const tagB = m.teamB ? m.teamB.tag : "TBD";
 
+          const isTeamAWinner = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
+          const isTeamBWinner = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
+
           matchesHTML += `
             <div class="match-row">
-              <span class="status-badge status-${m.status}">${m.status}</span>
-              <span class="match-team team-a">${tagA}</span>
+              <span class="match-team team-a ${isTeamAWinner ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagA}</span>
               <span class="match-score-pill">${m.scoreA} : ${m.scoreB}</span>
-              <span class="match-team team-b">${tagB}</span>
+              <span class="match-team team-b ${isTeamBWinner ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagB}</span>
             </div>
           `;
         });
@@ -526,7 +664,7 @@
         roundCard.innerHTML = `
           <div class="round-header">
             <span>ROUND ${r}</span>
-            <span>BO3</span>
+            <span style="font-size:10px; color:var(--lp-text-muted);">BO1</span>
           </div>
           ${matchesHTML}
         `;
@@ -534,13 +672,11 @@
       }
     }
 
-    // Live Socket Updates
     socket.on('teamsUpdated', () => loadAllData());
     socket.on('matchesUpdated', () => loadAllData());
-
     loadAllData();
 
-    // ================= ADMIN PANEL LOGIC =================
+    // ================= ADMIN LOGIC =================
     const modal = document.getElementById('adminModal');
     const adminKeyInput = document.getElementById('adminKeyInput');
     const tabTeamsBtn = document.getElementById('tabTeamsBtn');
@@ -570,7 +706,7 @@
       if (modal.style.display === 'flex') populateTeamsDropdown();
     }
 
-    // --- TEAMS TAB LOGIC ---
+    // --- TEAMS TAB ---
     const selectTeam = document.getElementById('adminSelectTeam');
     const editTag = document.getElementById('editTag');
     const editName = document.getElementById('editName');
@@ -667,11 +803,9 @@
       } catch (err) { alert(err.message); }
     });
 
-    // --- MATCHES TAB LOGIC ---
+    // --- MATCHES TAB (BO1 FAST UPDATE) ---
     const selectMatch = document.getElementById('adminSelectMatch');
-    const scoreAInput = document.getElementById('matchScoreA');
-    const scoreBInput = document.getElementById('matchScoreB');
-    const statusSelect = document.getElementById('matchStatus');
+    const matchStatus = document.getElementById('matchStatus');
 
     function populateMatchesDropdown() {
       selectMatch.innerHTML = '';
@@ -680,7 +814,7 @@
         const tagB = m.teamB ? m.teamB.tag : "TBD";
         const opt = document.createElement('option');
         opt.value = m._id;
-        opt.innerText = `[${m.matchCode}] ${tagA} vs ${tagB} (${m.status})`;
+        opt.innerText = `[${m.matchCode}] ${tagA} vs ${tagB} (Score: ${m.scoreA}-${m.scoreB})`;
         selectMatch.appendChild(opt);
       });
       loadSelectedMatch();
@@ -689,18 +823,36 @@
     function loadSelectedMatch() {
       const m = matchesData.find(match => match._id === selectMatch.value);
       if (m) {
-        document.getElementById('lblScoreA').innerText = `Score ${m.teamA ? m.teamA.tag : 'A'}`;
-        document.getElementById('lblScoreB').innerText = `Score ${m.teamB ? m.teamB.tag : 'B'}`;
-        scoreAInput.value = m.scoreA;
-        scoreBInput.value = m.scoreB;
-        statusSelect.value = m.status;
+        document.getElementById('btnWinA').innerText = `${m.teamA ? m.teamA.tag : 'A'} Wins (1 - 0)`;
+        document.getElementById('btnWinB').innerText = `${m.teamB ? m.teamB.tag : 'B'} Wins (0 - 1)`;
+        matchStatus.value = m.status;
       }
     }
 
     selectMatch.addEventListener('change', loadSelectedMatch);
 
+    async function sendMatchUpdate(scoreA, scoreB, status) {
+      const matchId = selectMatch.value;
+      if (!matchId) return;
+
+      try {
+        const res = await fetch(`/api/matches/${matchId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKeyInput.value.trim() },
+          body: JSON.stringify({ scoreA, scoreB, status })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        await loadAllData();
+        populateMatchesDropdown();
+      } catch (err) { alert(err.message); }
+    }
+
+    document.getElementById('btnWinA').addEventListener('click', () => sendMatchUpdate(1, 0, 'COMPLETED'));
+    document.getElementById('btnWinB').addEventListener('click', () => sendMatchUpdate(0, 1, 'COMPLETED'));
+    document.getElementById('btnResetMatch').addEventListener('click', () => sendMatchUpdate(0, 0, 'UPCOMING'));
+
     document.getElementById('btnGenSchedule').addEventListener('click', async () => {
-      if (!confirm("Generate 5-Team Round Robin Schedule? This resets match scores.")) return;
+      if (!confirm("Generate 5-Team Bo1 Schedule? This resets match scores.")) return;
       try {
         const res = await fetch('/api/matches/generate-schedule', {
           method: 'POST',
@@ -709,26 +861,6 @@
         if (!res.ok) throw new Error((await res.json()).error);
         await loadAllData();
         populateMatchesDropdown();
-      } catch (err) { alert(err.message); }
-    });
-
-    document.getElementById('btnSaveMatch').addEventListener('click', async () => {
-      const matchId = selectMatch.value;
-      if (!matchId) return;
-
-      try {
-        const res = await fetch(`/api/matches/${matchId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKeyInput.value.trim() },
-          body: JSON.stringify({
-            scoreA: scoreAInput.value,
-            scoreB: scoreBInput.value,
-            status: statusSelect.value
-          })
-        });
-        if (!res.ok) throw new Error((await res.json()).error);
-        await loadAllData();
-        toggleAdmin();
       } catch (err) { alert(err.message); }
     });
 

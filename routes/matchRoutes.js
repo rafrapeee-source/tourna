@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Auto-generate 5-Team Round Robin Schedule
+// Auto-generate 5-Team Bo1 Schedule
 router.post('/generate-schedule', authAdmin, async (req, res) => {
   try {
     const teams = await Team.find().sort({ seed: 1, createdAt: 1 }).limit(5);
@@ -36,21 +36,21 @@ router.post('/generate-schedule', authAdmin, async (req, res) => {
 
     await Match.deleteMany({});
 
-    // Standard 5-Team Berger Round Robin Pairings
+    // 5-Team Berger Round Robin Pairings (10 Bo1 Matches)
     const scheduleTemplate = [
-      // Round 1 (Team 4 has Bye)
+      // Round 1
       { round: 1, matchNumber: 1, a: 0, b: 1, code: 'R1-M1' },
       { round: 1, matchNumber: 2, a: 2, b: 4, code: 'R1-M2' },
-      // Round 2 (Team 5 has Bye)
+      // Round 2
       { round: 2, matchNumber: 1, a: 0, b: 2, code: 'R2-M1' },
       { round: 2, matchNumber: 2, a: 3, b: 1, code: 'R2-M2' },
-      // Round 3 (Team 2 has Bye)
+      // Round 3
       { round: 3, matchNumber: 1, a: 0, b: 3, code: 'R3-M1' },
       { round: 3, matchNumber: 2, a: 4, b: 2, code: 'R3-M2' },
-      // Round 4 (Team 3 has Bye)
+      // Round 4
       { round: 4, matchNumber: 1, a: 0, b: 4, code: 'R4-M1' },
       { round: 4, matchNumber: 2, a: 1, b: 3, code: 'R4-M2' },
-      // Round 5 (Team 1 has Bye)
+      // Round 5
       { round: 5, matchNumber: 1, a: 1, b: 4, code: 'R5-M1' },
       { round: 5, matchNumber: 2, a: 2, b: 3, code: 'R5-M2' },
     ];
@@ -63,7 +63,7 @@ router.post('/generate-schedule', authAdmin, async (req, res) => {
       teamB: teams[item.b] ? teams[item.b]._id : null,
       scoreA: 0,
       scoreB: 0,
-      status: (teams[item.a] && teams[item.b]) ? 'UPCOMING' : 'UPCOMING'
+      status: 'UPCOMING'
     }));
 
     await Match.insertMany(matchesToInsert);
@@ -71,13 +71,13 @@ router.post('/generate-schedule', authAdmin, async (req, res) => {
     const io = req.app.get('io');
     if (io) io.emit('matchesUpdated');
 
-    res.json({ message: "Round robin schedule generated successfully!" });
+    res.json({ message: "Bo1 Round robin schedule generated!" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update match score & status
+// Update Bo1 Match Result
 router.put('/:id', authAdmin, async (req, res) => {
   try {
     const { scoreA, scoreB, status } = req.body;
