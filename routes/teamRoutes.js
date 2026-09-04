@@ -4,31 +4,30 @@ const Team = require('../models/Team');
 
 const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || "IHS_ADMIN_2025";
 
-// Admin Authentication Middleware
 const authAdmin = (req, res, next) => {
   const token = req.headers['x-admin-key'];
   if (token !== ADMIN_SECRET_KEY) {
-    return res.status(403).json({ error: "Unauthorized access: Invalid admin key" });
+    return res.status(403).json({ error: "Unauthorized access" });
   }
   next();
 };
 
-// 1. GET all teams (Public)
+// GET all teams
 router.get('/', async (req, res) => {
   try {
-    const teams = await Team.find().sort({ seed: 1, createdAt: 1 });
+    const teams = await Team.find().sort({ seed: 1, createdAt: 1 }).limit(5);
     res.json(teams);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// 2. POST add a new team (Max 6 teams)
+// POST new team (Max 5)
 router.post('/', authAdmin, async (req, res) => {
   try {
     const count = await Team.countDocuments();
-    if (count >= 6) {
-      return res.status(400).json({ error: "Maximum limit of 6 teams reached." });
+    if (count >= 5) {
+      return res.status(400).json({ error: "Maximum limit of 5 teams reached." });
     }
 
     const { name, tag, players, seed } = req.body;
@@ -48,7 +47,7 @@ router.post('/', authAdmin, async (req, res) => {
   }
 });
 
-// 3. PUT update an existing team
+// PUT update team
 router.put('/:id', authAdmin, async (req, res) => {
   try {
     const { name, tag, players, seed } = req.body;
@@ -67,7 +66,7 @@ router.put('/:id', authAdmin, async (req, res) => {
   }
 });
 
-// 4. DELETE a team
+// DELETE team
 router.delete('/:id', authAdmin, async (req, res) => {
   try {
     await Team.findByIdAndDelete(req.params.id);

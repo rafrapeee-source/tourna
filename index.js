@@ -5,29 +5,29 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./db');
+
 const teamRoutes = require('./routes/teamRoutes');
+const matchRoutes = require('./routes/matchRoutes');
 
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io for Real-Time Sync
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST", "PUT", "DELETE"] }
 });
 app.set('io', io);
 
-// Connect MongoDB
 connectDB();
 
 app.use(cors());
 app.use(express.json());
 
-// Serve Static Assets & Frontend
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
-// Team API
+// Routes
 app.use('/api/teams', teamRoutes);
+app.use('/api/matches', matchRoutes);
 
 io.on('connection', (socket) => {
   console.log(`[Socket] User connected: ${socket.id}`);
