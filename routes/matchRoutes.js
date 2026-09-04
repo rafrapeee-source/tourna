@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Auto-generate full tournament (10 RR Matches + Play-In + Double Elim Bracket)
+// Generate Full Tournament (10 RR Matches + Play-In + Double Elim Bracket)
 router.post('/generate-tournament', authAdmin, async (req, res) => {
   try {
     const teams = await Team.find().sort({ seed: 1, createdAt: 1 }).limit(5);
@@ -59,7 +59,7 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
       });
     });
 
-    // 2. Play-In Match (Bo3: Seed 4 vs Seed 5)
+    // 2. Play-In Match (Bo3: 4th vs 5th Seed)
     matchesToInsert.push({
       matchCode: 'PLAY-IN',
       stage: 'PLAY_IN',
@@ -73,27 +73,27 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
     });
 
     // 3. Double Elimination Playoffs Bracket
-    // Upper Semifinal 1 (Seed 1 vs Winner Play-In)
+    // Upper Semifinal 1: #1 Seed vs #2 Seed
     matchesToInsert.push({
       matchCode: 'UB-SF1',
       stage: 'UPPER_BRACKET',
       title: 'Upper Semifinal 1',
       bestOf: 3,
       customNameA: '#1 Seed',
-      customNameB: 'Winner Play-In',
+      customNameB: '#2 Seed',
       scoreA: 0,
       scoreB: 0,
       status: 'UPCOMING'
     });
 
-    // Upper Semifinal 2 (Seed 2 vs Seed 3)
+    // Upper Semifinal 2: #3 Seed vs Play-In Winner
     matchesToInsert.push({
       matchCode: 'UB-SF2',
       stage: 'UPPER_BRACKET',
       title: 'Upper Semifinal 2',
       bestOf: 3,
-      customNameA: '#2 Seed',
-      customNameB: '#3 Seed',
+      customNameA: '#3 Seed',
+      customNameB: 'Play-in Winner',
       scoreA: 0,
       scoreB: 0,
       status: 'UPCOMING'
@@ -112,7 +112,7 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
       status: 'UPCOMING'
     });
 
-    // Lower Bracket R1 (Loser UB-SF1 vs Loser UB-SF2)
+    // Lower Bracket R1
     matchesToInsert.push({
       matchCode: 'LB-R1',
       stage: 'LOWER_BRACKET',
@@ -125,7 +125,7 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
       status: 'UPCOMING'
     });
 
-    // Lower Bracket Final (Loser UB-Final vs Winner LB-R1)
+    // Lower Bracket Final
     matchesToInsert.push({
       matchCode: 'LB-FINAL',
       stage: 'LOWER_BRACKET',
@@ -156,13 +156,13 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
     const io = req.app.get('io');
     if (io) io.emit('matchesUpdated');
 
-    res.json({ message: "Full tournament schedule & bracket generated successfully!" });
+    res.json({ message: "Schedule generated with Play-In Winner vs #3 Seed!" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update match score & automatically advance bracket winners
+// Update match score & team assignment
 router.put('/:id', authAdmin, async (req, res) => {
   try {
     const { scoreA, scoreB, status, teamA, teamB } = req.body;
