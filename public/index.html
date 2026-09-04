@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Liquipedia Round Robin Seeding Stage</title>
+  <title>Liquipedia Tournament - Round Robin & Playoffs</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
-      /* Liquipedia Dark Palette */
       --lp-bg: #14181d;
       --lp-card-bg: #1c2228;
       --lp-header-bg: #262e37;
@@ -29,12 +28,12 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background-color: var(--lp-bg);
       color: var(--lp-text-main);
-      padding: 1.5rem 1rem 3rem 1rem;
+      padding: 1.5rem 1rem 4rem 1rem;
       line-height: 1.4;
       font-size: 13px;
     }
 
-    .container { max-width: 1200px; margin: 0 auto; }
+    .container { max-width: 1250px; margin: 0 auto; }
 
     .section-title {
       font-size: 1.3rem;
@@ -42,7 +41,7 @@
       color: var(--lp-primary-blue);
       border-bottom: 2px solid var(--lp-primary-blue);
       padding-bottom: 6px;
-      margin-top: 28px;
+      margin-top: 32px;
       margin-bottom: 16px;
       letter-spacing: 0.5px;
       display: flex;
@@ -54,7 +53,7 @@
     .section-title:first-child { margin-top: 0; }
     .section-title span.sub { font-size: 12px; color: var(--lp-text-muted); font-weight: normal; }
 
-    /* ================= 5-TEAM CARDS ================= */
+    /* ================= 1. 5-TEAM CARDS ================= */
     .teams-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -160,21 +159,20 @@
     }
 
     .roster-item:nth-child(even) { background: var(--lp-row-alt); }
-
     .player-role-icon { width: 22px; height: 22px; display: flex; align-items: center; }
     .role-logo { width: 18px; height: 18px; object-fit: contain; }
     .player-ign { font-size: 12px; font-weight: 700; color: var(--lp-text-main); }
 
-    /* ================= SPLIT STAGE SECTION ================= */
-    .stage-layout {
+    /* ================= 2. ROUND ROBIN LAYOUT ================= */
+    .rr-layout {
       display: grid;
-      grid-template-columns: 380px 1fr;
-      gap: 20px;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
       align-items: start;
     }
 
-    @media (max-width: 900px) {
-      .stage-layout { grid-template-columns: 1fr; }
+    @media (max-width: 950px) {
+      .rr-layout { grid-template-columns: 1fr; }
     }
 
     /* STANDINGS TABLE */
@@ -202,7 +200,7 @@
     }
 
     .standings-table td {
-      padding: 9px 10px;
+      padding: 8px 10px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       font-size: 13px;
     }
@@ -211,7 +209,7 @@
 
     .seed-badge {
       display: inline-block;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       padding: 2px 6px;
       border-radius: 3px;
@@ -223,29 +221,29 @@
     .seed-4 { background: rgba(139, 148, 158, 0.15); color: #c9d1d9; border: 1px solid var(--lp-border); }
     .seed-5 { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
 
-    /* MATCHES GRID */
-    .rounds-grid {
+    /* MATCHES LIST */
+    .rr-matches-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
     }
 
-    .round-card {
+    .match-box {
       background: var(--lp-card-bg);
       border: 1px solid var(--lp-border);
-      border-radius: 6px;
+      border-radius: 5px;
       overflow: hidden;
     }
 
-    .round-header {
+    .match-box-header {
       background: var(--lp-header-bg);
-      padding: 6px 10px;
+      padding: 5px 8px;
+      font-size: 10px;
       font-weight: 700;
-      font-size: 11px;
       color: var(--lp-primary-blue);
-      border-bottom: 1px solid var(--lp-border);
       display: flex;
       justify-content: space-between;
+      border-bottom: 1px solid var(--lp-border);
     }
 
     .match-row {
@@ -253,10 +251,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 8px 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
-
-    .match-row:nth-child(even) { background: var(--lp-row-alt); }
 
     .match-team {
       flex: 1;
@@ -266,7 +261,6 @@
 
     .match-team.team-a { text-align: left; }
     .match-team.team-b { text-align: right; }
-
     .match-team.winner { color: var(--lp-green); }
     .match-team.loser { color: var(--lp-text-muted); opacity: 0.6; }
 
@@ -277,24 +271,82 @@
       padding: 2px 8px;
       font-weight: 800;
       font-size: 12px;
-      min-width: 42px;
+      min-width: 40px;
       text-align: center;
-      margin: 0 8px;
+      margin: 0 6px;
     }
 
-    .status-badge {
-      font-size: 8px;
-      padding: 1px 4px;
-      border-radius: 2px;
-      font-weight: bold;
+    /* ================= 3. PLAY-IN QUALIFIER ================= */
+    .playin-container {
+      max-width: 450px;
+      margin-bottom: 24px;
     }
-    .status-LIVE { background: rgba(46, 160, 67, 0.2); color: #3fb950; border: 1px solid #2ea043; }
+
+    /* ================= 4. PLAYOFFS BRACKET ================= */
+    .bracket-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .bracket-stage-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--lp-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .bracket-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      align-items: center;
+    }
+
+    .bracket-match-card {
+      background: var(--lp-card-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .bracket-match-header {
+      background: var(--lp-header-bg);
+      padding: 5px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--lp-primary-blue);
+      border-bottom: 1px solid var(--lp-border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .bracket-slot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      font-weight: 600;
+    }
+
+    .bracket-slot:last-child { border-bottom: none; }
+    .bracket-slot.winner { background: rgba(63, 185, 80, 0.08); color: var(--lp-green); }
+    .bracket-slot-score {
+      font-weight: 800;
+      background: var(--lp-header-bg);
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid var(--lp-border);
+    }
 
     /* ================= ADMIN MODAL ================= */
     .admin-modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       display: none;
       align-items: center;
       justify-content: center;
@@ -307,7 +359,7 @@
       border: 1px solid var(--lp-border);
       border-radius: 8px;
       width: 90%;
-      max-width: 560px;
+      max-width: 580px;
       max-height: 90vh;
       overflow-y: auto;
       padding: 20px;
@@ -376,41 +428,70 @@
 
   <div class="container">
     
-    <!-- 1. 5 TEAMS ROW -->
+    <!-- 1. PARTICIPATING TEAMS -->
     <div class="section-title" id="pageTitle" title="Double click or press Ctrl+Shift+A for Admin Panel">
       <span>Participating Teams</span>
       <span class="sub">Hover over a team to view active roster</span>
     </div>
     <div class="teams-grid" id="teamsContainer"></div>
 
-    <!-- 2. SEEDING STAGE (STANDINGS + BO1 MATCHES) -->
+    <!-- 2. ROUND ROBIN SEEDING STAGE -->
     <div class="section-title">
-      <span>Round Robin Seeding Stage (Best of 1)</span>
-      <span class="sub">Top 1 to Top 5 Seeding Determination</span>
+      <span>Round Robin Seeding Stage (Bo1)</span>
+      <span class="sub">All 5 teams play each other once • Top 1 to Top 5 Seeding</span>
     </div>
 
-    <div class="stage-layout">
-      
-      <!-- LEFT: LIVE SEEDING STANDINGS TABLE -->
+    <div class="rr-layout">
+      <!-- Live Standings Table -->
       <div class="standings-card">
         <table class="standings-table">
           <thead>
             <tr>
-              <th style="width: 70px;">Seed</th>
+              <th style="width: 75px;">Seed</th>
               <th>Team</th>
               <th style="text-align: center; width: 60px;">W - L</th>
-              <th style="text-align: right; width: 60px;">Win %</th>
+              <th style="text-align: right; width: 55px;">Win %</th>
             </tr>
           </thead>
-          <tbody id="standingsTableBody">
-            <!-- Rendered live via JS -->
-          </tbody>
+          <tbody id="standingsTableBody"></tbody>
         </table>
       </div>
 
-      <!-- RIGHT: 5 ROUNDS BO1 MATCHES -->
-      <div class="rounds-grid" id="roundsContainer"></div>
+      <!-- 10 Bo1 Matches Grid -->
+      <div class="rr-matches-grid" id="rrMatchesContainer"></div>
+    </div>
 
+    <!-- 3. PLAY-IN WILDCARD MATCH (4th vs 5th Seed) -->
+    <div class="section-title">
+      <span>Play-In Qualifier (Best of 3)</span>
+      <span class="sub">Winner qualifies for Playoffs as #4 Seed • Loser is Eliminated</span>
+    </div>
+    <div class="playin-container" id="playinContainer"></div>
+
+    <!-- 4. PLAYOFFS DOUBLE ELIMINATION BRACKET -->
+    <div class="section-title">
+      <span>Playoffs (Double Elimination Bracket)</span>
+      <span class="sub">4-Team Double Elimination • Bo3 (Grand Finals Bo5)</span>
+    </div>
+
+    <div class="bracket-wrapper">
+      <!-- Upper Bracket -->
+      <div>
+        <div class="bracket-stage-title">Upper Bracket</div>
+        <div class="bracket-grid" id="upperBracketContainer"></div>
+      </div>
+
+      <!-- Lower Bracket -->
+      <div>
+        <div class="bracket-stage-title">Lower Bracket</div>
+        <div class="bracket-grid" id="lowerBracketContainer"></div>
+      </div>
+
+      <!-- Grand Finals -->
+      <div>
+        <div class="bracket-stage-title">Grand Finals</div>
+        <div class="bracket-grid" id="grandFinalsContainer" style="max-width: 320px;"></div>
+      </div>
     </div>
 
   </div>
@@ -419,7 +500,7 @@
   <div class="admin-modal-overlay" id="adminModal">
     <div class="admin-modal">
       <div class="admin-header">
-        <h2>Tournament Manager (Bo1 Round Robin)</h2>
+        <h2>Tournament Manager</h2>
         <button class="admin-close" id="adminCloseBtn">&times;</button>
       </div>
 
@@ -429,8 +510,8 @@
       </div>
 
       <div class="admin-tabs">
-        <button class="tab-btn active" id="tabTeamsBtn">Manage 5 Teams</button>
-        <button class="tab-btn" id="tabMatchesBtn">Manage Bo1 Matches & Scores</button>
+        <button class="tab-btn active" id="tabTeamsBtn">Manage Teams</button>
+        <button class="tab-btn" id="tabMatchesBtn">Manage Scores & Bracket</button>
       </div>
 
       <!-- TAB 1: TEAMS -->
@@ -462,32 +543,51 @@
         </div>
       </div>
 
-      <!-- TAB 2: BO1 MATCHES -->
+      <!-- TAB 2: MATCHES & SCORES -->
       <div id="tabMatchesSection" style="display:none;">
         <div style="margin-bottom:14px;">
-          <button class="btn btn-primary" id="btnGenSchedule">Generate / Reset 5-Team Bo1 Schedule</button>
+          <button class="btn btn-primary" id="btnGenTournament">Generate Full Tournament Schedule</button>
         </div>
+
         <div class="form-group">
-          <label>Select Match</label>
+          <label>Select Match to Update</label>
           <select class="form-control" id="adminSelectMatch"></select>
         </div>
 
-        <div class="form-group">
-          <label>Quick Bo1 Outcome</label>
-          <div style="display:flex; gap:10px;">
-            <button class="btn btn-secondary" id="btnWinA" style="flex:1;">Team A Wins (1 - 0)</button>
-            <button class="btn btn-secondary" id="btnWinB" style="flex:1;">Team B Wins (0 - 1)</button>
-            <button class="btn btn-secondary" id="btnResetMatch">Reset (0 - 0)</button>
+        <!-- Optional Assign Teams for Bracket Matches -->
+        <div id="bracketTeamAssign" style="display:none; gap:10px; margin-bottom:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Team A</label>
+            <select class="form-control" id="assignTeamA"></select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Team B</label>
+            <select class="form-control" id="assignTeamB"></select>
           </div>
         </div>
 
-        <div class="form-group" style="margin-top:10px;">
-          <label>Status</label>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div class="form-group" style="flex:1;">
+            <label id="lblScoreA">Score Team A</label>
+            <input type="number" class="form-control" id="matchScoreA" min="0" value="0">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label id="lblScoreB">Score Team B</label>
+            <input type="number" class="form-control" id="matchScoreB" min="0" value="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Match Status</label>
           <select class="form-control" id="matchStatus">
             <option value="UPCOMING">UPCOMING</option>
             <option value="LIVE">LIVE</option>
             <option value="COMPLETED">COMPLETED</option>
           </select>
+        </div>
+
+        <div style="text-align:right; margin-top:14px;">
+          <button class="btn btn-primary" id="btnSaveMatchScore">Save Match Result</button>
         </div>
       </div>
 
@@ -516,9 +616,11 @@
         ]);
         teamsData = await teamsRes.json();
         matchesData = await matchesRes.json();
+
         render5Teams();
-        renderStandings();
-        renderRoundRobin();
+        renderStandingsAndRR();
+        renderPlayIn();
+        renderPlayoffs();
       } catch (err) {
         console.error("Error loading tournament data:", err);
       }
@@ -570,19 +672,22 @@
       }
     }
 
-    // 2. Render Live Seeding Standings (Top 1 to Top 5)
-    function renderStandings() {
+    // 2. Render Live Standings & 10 Bo1 Matches
+    function renderStandingsAndRR() {
       const tbody = document.getElementById('standingsTableBody');
+      const rrContainer = document.getElementById('rrMatchesContainer');
       tbody.innerHTML = '';
+      rrContainer.innerHTML = '';
 
-      // Initialize team stats
+      const rrMatches = matchesData.filter(m => m.stage === 'ROUND_ROBIN');
+
+      // Standings calculation
       const statsMap = {};
       teamsData.forEach(t => {
         statsMap[t._id] = { team: t, wins: 0, losses: 0, played: 0 };
       });
 
-      // Calculate from completed Bo1 matches
-      matchesData.forEach(m => {
+      rrMatches.forEach(m => {
         if (m.status === 'COMPLETED' && m.teamA && m.teamB) {
           const idA = m.teamA._id || m.teamA;
           const idB = m.teamB._id || m.teamB;
@@ -601,20 +706,20 @@
         }
       });
 
-      // Sort by Wins desc, then Losses asc
       const sortedStandings = Object.values(statsMap).sort((a, b) => {
         if (b.wins !== a.wins) return b.wins - a.wins;
         return a.losses - b.losses;
       });
 
+      // Render Standings
       for (let i = 0; i < 5; i++) {
         const item = sortedStandings[i];
-        const seedNumber = i + 1;
+        const seedNum = i + 1;
         const winRate = item && item.played > 0 ? Math.round((item.wins / item.played) * 100) : 0;
 
         tbody.innerHTML += `
           <tr>
-            <td><span class="seed-badge seed-${seedNumber}">#${seedNumber} Seed</span></td>
+            <td><span class="seed-badge seed-${seedNum}">#${seedNum} Seed</span></td>
             <td style="font-weight: 700;">
               ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span> <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
             </td>
@@ -627,49 +732,83 @@
           </tr>
         `;
       }
-    }
 
-    // 3. Render 5 Rounds of Bo1 Matches
-    function renderRoundRobin() {
-      const container = document.getElementById('roundsContainer');
-      container.innerHTML = '';
-
-      if (!matchesData || matchesData.length === 0) {
-        container.innerHTML = '<div style="color:var(--lp-text-muted); padding:10px;">Schedule not yet generated. Open Admin Panel (Ctrl+Shift+A) to generate.</div>';
-        return;
-      }
-
-      for (let r = 1; r <= 5; r++) {
-        const roundMatches = matchesData.filter(m => m.round === r);
-        const roundCard = document.createElement('div');
-        roundCard.className = 'round-card';
-
-        let matchesHTML = '';
-        roundMatches.forEach(m => {
+      // Render 10 Matches
+      if (rrMatches.length === 0) {
+        rrContainer.innerHTML = '<div style="color:var(--lp-text-muted); padding:10px;">Round Robin schedule not generated.</div>';
+      } else {
+        rrMatches.forEach(m => {
           const tagA = m.teamA ? m.teamA.tag : "TBD";
           const tagB = m.teamB ? m.teamB.tag : "TBD";
+          const winA = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
+          const winB = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
 
-          const isTeamAWinner = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
-          const isTeamBWinner = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
-
-          matchesHTML += `
-            <div class="match-row">
-              <span class="match-team team-a ${isTeamAWinner ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagA}</span>
-              <span class="match-score-pill">${m.scoreA} : ${m.scoreB}</span>
-              <span class="match-team team-b ${isTeamBWinner ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagB}</span>
+          rrContainer.innerHTML += `
+            <div class="match-box">
+              <div class="match-box-header">
+                <span>${m.matchCode}</span>
+                <span>BO1</span>
+              </div>
+              <div class="match-row">
+                <span class="match-team team-a ${winA ? 'winner' : (m.status==='COMPLETED'?'loser':'')}">${tagA}</span>
+                <span class="match-score-pill">${m.scoreA} : ${m.scoreB}</span>
+                <span class="match-team team-b ${winB ? 'winner' : (m.status==='COMPLETED'?'loser':'')}">${tagB}</span>
+              </div>
             </div>
           `;
         });
-
-        roundCard.innerHTML = `
-          <div class="round-header">
-            <span>ROUND ${r}</span>
-            <span style="font-size:10px; color:var(--lp-text-muted);">BO1</span>
-          </div>
-          ${matchesHTML}
-        `;
-        container.appendChild(roundCard);
       }
+    }
+
+    // Helper for rendering bracket cards
+    function createBracketCard(m) {
+      if (!m) return '';
+      const tagA = m.teamA ? m.teamA.tag : (m.customNameA || "TBD");
+      const tagB = m.teamB ? m.teamB.tag : (m.customNameB || "TBD");
+      const winA = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
+      const winB = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
+
+      return `
+        <div class="bracket-match-card">
+          <div class="bracket-match-header">
+            <span>${m.title}</span>
+            <span>BO${m.bestOf}</span>
+          </div>
+          <div class="bracket-slot ${winA ? 'winner' : ''}">
+            <span>${tagA}</span>
+            <span class="bracket-slot-score">${m.scoreA}</span>
+          </div>
+          <div class="bracket-slot ${winB ? 'winner' : ''}">
+            <span>${tagB}</span>
+            <span class="bracket-slot-score">${m.scoreB}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. Render Play-In Qualifier (4th vs 5th)
+    function renderPlayIn() {
+      const container = document.getElementById('playinContainer');
+      const playInMatch = matchesData.find(m => m.matchCode === 'PLAY-IN');
+      container.innerHTML = playInMatch ? createBracketCard(playInMatch) : '<span style="color:var(--lp-text-muted);">Play-in match pending generation.</span>';
+    }
+
+    // 4. Render Playoffs (Double Elimination Bracket)
+    function renderPlayoffs() {
+      const ubContainer = document.getElementById('upperBracketContainer');
+      const lbContainer = document.getElementById('lowerBracketContainer');
+      const gfContainer = document.getElementById('grandFinalsContainer');
+
+      const ubSF1 = matchesData.find(m => m.matchCode === 'UB-SF1');
+      const ubSF2 = matchesData.find(m => m.matchCode === 'UB-SF2');
+      const ubFinal = matchesData.find(m => m.matchCode === 'UB-FINAL');
+      const lbR1 = matchesData.find(m => m.matchCode === 'LB-R1');
+      const lbFinal = matchesData.find(m => m.matchCode === 'LB-FINAL');
+      const gf = matchesData.find(m => m.matchCode === 'GRAND-FINALS');
+
+      ubContainer.innerHTML = (createBracketCard(ubSF1) + createBracketCard(ubSF2) + createBracketCard(ubFinal)) || '---';
+      lbContainer.innerHTML = (createBracketCard(lbR1) + createBracketCard(lbFinal)) || '---';
+      gfContainer.innerHTML = createBracketCard(gf) || '---';
     }
 
     socket.on('teamsUpdated', () => loadAllData());
@@ -803,64 +942,95 @@
       } catch (err) { alert(err.message); }
     });
 
-    // --- MATCHES TAB (BO1 FAST UPDATE) ---
+    // --- MATCHES TAB ---
     const selectMatch = document.getElementById('adminSelectMatch');
-    const matchStatus = document.getElementById('matchStatus');
+    const scoreAInput = document.getElementById('matchScoreA');
+    const scoreBInput = document.getElementById('matchScoreB');
+    const statusSelect = document.getElementById('matchStatus');
+    const assignDiv = document.getElementById('bracketTeamAssign');
+    const assignTeamA = document.getElementById('assignTeamA');
+    const assignTeamB = document.getElementById('assignTeamB');
 
     function populateMatchesDropdown() {
       selectMatch.innerHTML = '';
       matchesData.forEach((m) => {
-        const tagA = m.teamA ? m.teamA.tag : "TBD";
-        const tagB = m.teamB ? m.teamB.tag : "TBD";
+        const tagA = m.teamA ? m.teamA.tag : (m.customNameA || "TBD");
+        const tagB = m.teamB ? m.teamB.tag : (m.customNameB || "TBD");
         const opt = document.createElement('option');
         opt.value = m._id;
-        opt.innerText = `[${m.matchCode}] ${tagA} vs ${tagB} (Score: ${m.scoreA}-${m.scoreB})`;
+        opt.innerText = `[${m.matchCode}] ${m.title}: ${tagA} vs ${tagB} (${m.scoreA}-${m.scoreB})`;
         selectMatch.appendChild(opt);
       });
+
+      // Populate Team Selector Options
+      assignTeamA.innerHTML = '<option value="">(Keep Custom Placeholder)</option>';
+      assignTeamB.innerHTML = '<option value="">(Keep Custom Placeholder)</option>';
+      teamsData.forEach(t => {
+        assignTeamA.innerHTML += `<option value="${t._id}">${t.tag} (${t.name})</option>`;
+        assignTeamB.innerHTML += `<option value="${t._id}">${t.tag} (${t.name})</option>`;
+      });
+
       loadSelectedMatch();
     }
 
     function loadSelectedMatch() {
       const m = matchesData.find(match => match._id === selectMatch.value);
       if (m) {
-        document.getElementById('btnWinA').innerText = `${m.teamA ? m.teamA.tag : 'A'} Wins (1 - 0)`;
-        document.getElementById('btnWinB').innerText = `${m.teamB ? m.teamB.tag : 'B'} Wins (0 - 1)`;
-        matchStatus.value = m.status;
+        document.getElementById('lblScoreA').innerText = `Score ${m.teamA ? m.teamA.tag : (m.customNameA || 'A')}`;
+        document.getElementById('lblScoreB').innerText = `Score ${m.teamB ? m.teamB.tag : (m.customNameB || 'B')}`;
+        scoreAInput.value = m.scoreA;
+        scoreBInput.value = m.scoreB;
+        statusSelect.value = m.status;
+
+        if (m.stage !== 'ROUND_ROBIN') {
+          assignDiv.style.display = 'flex';
+          assignTeamA.value = m.teamA ? m.teamA._id : '';
+          assignTeamB.value = m.teamB ? m.teamB._id : '';
+        } else {
+          assignDiv.style.display = 'none';
+        }
       }
     }
 
     selectMatch.addEventListener('change', loadSelectedMatch);
 
-    async function sendMatchUpdate(scoreA, scoreB, status) {
-      const matchId = selectMatch.value;
-      if (!matchId) return;
-
+    document.getElementById('btnGenTournament').addEventListener('click', async () => {
+      if (!confirm("Generate Full Tournament (Round Robin + Play-In + Double Elim)? This resets matches.")) return;
       try {
-        const res = await fetch(`/api/matches/${matchId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKeyInput.value.trim() },
-          body: JSON.stringify({ scoreA, scoreB, status })
-        });
-        if (!res.ok) throw new Error((await res.json()).error);
-        await loadAllData();
-        populateMatchesDropdown();
-      } catch (err) { alert(err.message); }
-    }
-
-    document.getElementById('btnWinA').addEventListener('click', () => sendMatchUpdate(1, 0, 'COMPLETED'));
-    document.getElementById('btnWinB').addEventListener('click', () => sendMatchUpdate(0, 1, 'COMPLETED'));
-    document.getElementById('btnResetMatch').addEventListener('click', () => sendMatchUpdate(0, 0, 'UPCOMING'));
-
-    document.getElementById('btnGenSchedule').addEventListener('click', async () => {
-      if (!confirm("Generate 5-Team Bo1 Schedule? This resets match scores.")) return;
-      try {
-        const res = await fetch('/api/matches/generate-schedule', {
+        const res = await fetch('/api/matches/generate-tournament', {
           method: 'POST',
           headers: { 'x-admin-key': adminKeyInput.value.trim() }
         });
         if (!res.ok) throw new Error((await res.json()).error);
         await loadAllData();
         populateMatchesDropdown();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('btnSaveMatchScore').addEventListener('click', async () => {
+      const matchId = selectMatch.value;
+      if (!matchId) return;
+
+      const payload = {
+        scoreA: scoreAInput.value,
+        scoreB: scoreBInput.value,
+        status: statusSelect.value
+      };
+
+      if (assignDiv.style.display !== 'none') {
+        if (assignTeamA.value) payload.teamA = assignTeamA.value;
+        if (assignTeamB.value) payload.teamB = assignTeamB.value;
+      }
+
+      try {
+        const res = await fetch(`/api/matches/${matchId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKeyInput.value.trim() },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        await loadAllData();
+        toggleAdmin();
       } catch (err) { alert(err.message); }
     });
 
