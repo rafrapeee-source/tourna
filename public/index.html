@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Liquipedia Minimalist Roster</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    :root {
+      /* Liquipedia Dark Palette */
+      --lp-bg: #14181d;
+      --lp-card-bg: #1c2228;
+      --lp-header-bg: #262e37;
+      --lp-border: #313c49;
+      --lp-border-hover: #58a6ff;
+      --lp-primary-blue: #58a6ff;
+      --lp-text-main: #e6edf3;
+      --lp-text-muted: #8b949e;
+      --lp-row-alt: #171c22;
+      --lp-input-bg: #0d1117;
+      --lp-danger: #f85149;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--lp-bg);
+      color: var(--lp-text-main);
+      padding: 2.5rem 1rem;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .page-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--lp-primary-blue);
+      border-bottom: 2px solid var(--lp-primary-blue);
+      padding-bottom: 8px;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .page-title span.sub {
+      font-size: 12px;
+      color: var(--lp-text-muted);
+      font-weight: normal;
+    }
+
+    /* 6-Card Grid */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .team-card {
+      position: relative;
+      height: 275px;
+      background: var(--lp-card-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .team-card:hover {
+      border-color: var(--lp-border-hover);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    }
+
+    /* FRONT VIEW */
+    .card-front {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .team-tag {
+      font-size: 3.2rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: var(--lp-primary-blue);
+      line-height: 1;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .team-name {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--lp-text-main);
+    }
+
+    .hover-hint {
+      position: absolute;
+      bottom: 10px;
+      font-size: 10px;
+      color: var(--lp-text-muted);
+      letter-spacing: 0.5px;
+      opacity: 0.6;
+    }
+
+    /* HOVER VIEW */
+    .card-roster {
+      position: absolute;
+      inset: 0;
+      background: var(--lp-card-bg);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: scale(0.98);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .team-card:hover .card-front { opacity: 0; transform: scale(1.02); }
+    .team-card:hover .card-roster { opacity: 1; transform: scale(1); pointer-events: auto; }
+
+    .roster-header {
+      background: var(--lp-header-bg);
+      padding: 7px 14px;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--lp-primary-blue);
+      border-bottom: 1px solid var(--lp-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-transform: uppercase;
+    }
+
+    .roster-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      list-style: none;
+      padding: 0;
+    }
+
+    .roster-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .roster-item:nth-child(even) { background: var(--lp-row-alt); }
+
+    .player-role-icon {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      width: 24px;
+      height: 24px;
+    }
+
+    .role-logo {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+      transition: transform 0.15s ease;
+    }
+
+    .roster-item:hover .role-logo { transform: scale(1.15); }
+
+    .player-ign {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--lp-text-main);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    /* ADMIN MODAL */
+    .admin-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+
+    .admin-modal {
+      background: var(--lp-card-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--lp-border);
+      padding-bottom: 8px;
+    }
+
+    .admin-header h2 { font-size: 1.1rem; color: var(--lp-primary-blue); }
+    .admin-close { background: none; border: none; color: var(--lp-text-muted); font-size: 18px; cursor: pointer; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 11px; font-weight: bold; color: var(--lp-text-muted); margin-bottom: 4px; text-transform: uppercase; }
+
+    .form-control {
+      width: 100%;
+      background: var(--lp-input-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 4px;
+      color: var(--lp-text-main);
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--lp-primary-blue); }
+
+    .player-row-input {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .admin-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 18px;
+      border-top: 1px solid var(--lp-border);
+      padding-top: 14px;
+    }
+
+    .btn { padding: 6px 14px; font-size: 12px; font-weight: bold; border-radius: 4px; cursor: pointer; border: 1px solid transparent; }
+    .btn-primary { background: var(--lp-primary-blue); color: #fff; }
+    .btn-danger { background: var(--lp-danger); color: #fff; }
+    .btn-secondary { background: var(--lp-header-bg); color: var(--lp-text-main); border-color: var(--lp-border); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="page-title" id="pageTitle" title="Double click or press Ctrl+Shift+A for Admin Panel">
+      <span>Participating Teams</span>
+      <span class="sub">Hover over a team to view active roster</span>
+    </div>
+
+    <div class="teams-grid" id="teamsContainer">
+      <!-- 6 Slots Rendered Dynamically -->
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div class="admin-modal-overlay" id="adminModal">
+    <div class="admin-modal">
+      <div class="admin-header">
+        <h2>Manage Teams (MongoDB)</h2>
+        <button class="admin-close" id="adminCloseBtn">&times;</button>
+      </div>
+
+      <div class="form-group">
+        <label>Admin Secret Key</label>
+        <input type="password" class="form-control" id="adminKeyInput" placeholder="Enter ADMIN_SECRET_KEY">
+      </div>
+
+      <div class="form-group">
+        <label>Select Team or Slot</label>
+        <select class="form-control" id="adminSelectTeam">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Team Tag</label>
+        <input type="text" class="form-control" id="editTag" placeholder="e.g. TL">
+      </div>
+
+      <div class="form-group">
+        <label>Team Full Name</label>
+        <input type="text" class="form-control" id="editName" placeholder="e.g. Team Liquid">
+      </div>
+
+      <div class="form-group">
+        <label>Players (Roles)</label>
+        <div class="player-row-input"><span>EXP:</span><input type="text" class="form-control" id="expLane" required></div>
+        <div class="player-row-input"><span>Core:</span><input type="text" class="form-control" id="core" required></div>
+        <div class="player-row-input"><span>Mid:</span><input type="text" class="form-control" id="midLane" required></div>
+        <div class="player-row-input"><span>Gold:</span><input type="text" class="form-control" id="goldLane" required></div>
+        <div class="player-row-input"><span>Roam:</span><input type="text" class="form-control" id="roam" required></div>
+        <div class="player-row-input"><span>6th Man:</span><input type="text" class="form-control" id="sixthMan" required></div>
+      </div>
+
+      <div class="admin-actions">
+        <button class="btn btn-danger" id="adminDeleteBtn" style="display:none;">Delete Team</button>
+        <div style="display:flex; gap:8px; margin-left:auto;">
+          <button class="btn btn-secondary" id="adminCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="adminSaveBtn">Save Team</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+    let teamsData = [];
+
+    const roleDefinitions = [
+      { key: "expLane", name: "EXP Lane", logo: "assets/exp.png" },
+      { key: "core", name: "Core", logo: "assets/core.png" },
+      { key: "midLane", name: "Mid Lane", logo: "assets/mid.png" },
+      { key: "goldLane", name: "Gold Lane", logo: "assets/gold.png" },
+      { key: "roam", name: "Roam", logo: "assets/roam.png" },
+      { key: "sixthMan", name: "6th Man", logo: "assets/sub.svg" }
+    ];
+
+    async function loadTeams() {
+      try {
+        const response = await fetch('/api/teams');
+        teamsData = await response.json();
+        render6Slots();
+      } catch (err) {
+        console.error("Error fetching teams:", err);
+      }
+    }
+
+    function render6Slots() {
+      const container = document.getElementById('teamsContainer');
+      container.innerHTML = '';
+
+      for (let i = 0; i < 6; i++) {
+        const team = teamsData[i];
+        const card = document.createElement('div');
+        card.className = 'team-card';
+
+        if (team) {
+          let rosterRows = '';
+          roleDefinitions.forEach(role => {
+            const playerIGN = (team.players && team.players[role.key]) || "TBD";
+            rosterRows += `
+              <li class="roster-item">
+                <div class="player-role-icon">
+                  <img class="role-logo" src="${role.logo}" alt="${role.name}" title="${role.name}" />
+                </div>
+                <span class="player-ign">${playerIGN}</span>
+              </li>
+            `;
+          });
+
+          card.innerHTML = `
+            <div class="card-front">
+              <div class="team-tag">${team.tag}</div>
+              <div class="team-name">${team.name}</div>
+              <div class="hover-hint">HOVER FOR ROSTER</div>
+            </div>
+            <div class="card-roster">
+              <div class="roster-header">
+                <span>${team.name}</span>
+                <span>ROSTER</span>
+              </div>
+              <ul class="roster-list">
+                ${rosterRows}
+              </ul>
+            </div>
+          `;
+        } else {
+          card.innerHTML = `
+            <div class="card-front">
+              <div class="team-tag" style="opacity: 0.25;">TBD</div>
+              <div class="team-name" style="color: var(--lp-text-muted);">Empty Slot ${i + 1}</div>
+              <div class="hover-hint">AWAITING REGISTRATION</div>
+            </div>
+          `;
+        }
+
+        container.appendChild(card);
+      }
+    }
+
+    socket.on('teamsUpdated', () => loadTeams());
+    loadTeams();
+
+    // Admin Panel Logic
+    const modal = document.getElementById('adminModal');
+    const adminKeyInput = document.getElementById('adminKeyInput');
+    const selectTeam = document.getElementById('adminSelectTeam');
+    const editTag = document.getElementById('editTag');
+    const editName = document.getElementById('editName');
+    const deleteBtn = document.getElementById('adminDeleteBtn');
+    const saveBtn = document.getElementById('adminSaveBtn');
+
+    adminKeyInput.value = localStorage.getItem('admin_key') || "IHS_ADMIN_2025";
+
+    function toggleAdmin() {
+      modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+      if (modal.style.display === 'flex') populateAdminDropdown();
+    }
+
+    function populateAdminDropdown() {
+      selectTeam.innerHTML = '';
+
+      teamsData.forEach((team) => {
+        const opt = document.createElement('option');
+        opt.value = team._id;
+        opt.innerText = `Edit: [${team.tag}] ${team.name}`;
+        selectTeam.appendChild(opt);
+      });
+
+      if (teamsData.length < 6) {
+        const addOpt = document.createElement('option');
+        addOpt.value = "NEW";
+        addOpt.innerText = `+ Add New Team (${teamsData.length}/6)`;
+        selectTeam.appendChild(addOpt);
+      }
+
+      loadSelectedTeamToForm();
+    }
+
+    function loadSelectedTeamToForm() {
+      const selectedId = selectTeam.value;
+
+      if (selectedId === "NEW" || !selectedId) {
+        editTag.value = '';
+        editName.value = '';
+        roleDefinitions.forEach(r => document.getElementById(r.key).value = '');
+        deleteBtn.style.display = 'none';
+      } else {
+        const team = teamsData.find(t => t._id === selectedId);
+        if (team) {
+          editTag.value = team.tag;
+          editName.value = team.name;
+          roleDefinitions.forEach(r => {
+            document.getElementById(r.key).value = team.players[r.key] || '';
+          });
+          deleteBtn.style.display = 'inline-block';
+        }
+      }
+    }
+
+    selectTeam.addEventListener('change', loadSelectedTeamToForm);
+
+    saveBtn.addEventListener('click', async () => {
+      const adminKey = adminKeyInput.value.trim();
+      localStorage.setItem('admin_key', adminKey);
+
+      const payload = {
+        name: editName.value.trim(),
+        tag: editTag.value.trim().toUpperCase(),
+        players: {
+          expLane: document.getElementById('expLane').value.trim(),
+          core: document.getElementById('core').value.trim(),
+          midLane: document.getElementById('midLane').value.trim(),
+          goldLane: document.getElementById('goldLane').value.trim(),
+          roam: document.getElementById('roam').value.trim(),
+          sixthMan: document.getElementById('sixthMan').value.trim()
+        }
+      };
+
+      if (!payload.name || !payload.tag) {
+        alert("Please provide both Team Name and Tag");
+        return;
+      }
+
+      const selectedId = selectTeam.value;
+      const isNew = selectedId === "NEW";
+      const url = isNew ? '/api/teams' : `/api/teams/${selectedId}`;
+      const method = isNew ? 'POST' : 'PUT';
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': adminKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Request failed");
+        }
+
+        await loadTeams();
+        toggleAdmin();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      const selectedId = selectTeam.value;
+      if (!selectedId || selectedId === "NEW") return;
+
+      if (!confirm("Are you sure you want to delete this team?")) return;
+
+      const adminKey = adminKeyInput.value.trim();
+      try {
+        const res = await fetch(`/api/teams/${selectedId}`, {
+          method: 'DELETE',
+          headers: { 'x-admin-key': adminKey }
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Delete failed");
+        }
+
+        await loadTeams();
+        toggleAdmin();
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    });
+
+    document.getElementById('adminCloseBtn').addEventListener('click', toggleAdmin);
+    document.getElementById('adminCancelBtn').addEventListener('click', toggleAdmin);
+
+    // Keybind: Ctrl+Shift+A or Cmd+Shift+A
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        e.preventDefault();
+        toggleAdmin();
+      }
+    });
+
+    // Double-click page title trigger
+    document.getElementById('pageTitle').addEventListener('dblclick', toggleAdmin);
+  </script>
+</body>
+</html>

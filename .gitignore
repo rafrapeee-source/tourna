@@ -1,0 +1,93 @@
+# ==========================================
+# Environment Variables & Secrets (CRITICAL)
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+certs/
+
+# ==========================================
+# Operating System Files
+# ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.fuse_hidden*
+.directory
+.trash/
+
+# ==========================================
+# Common IDEs and Editors
+# ==========================================
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# IntelliJ / JetBrains
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Vim
+*~
+*.swp
+*.swo
+
+# ==========================================
+# Node.js / JavaScript / TypeScript
+# ==========================================
+node_modules/
+jspm_packages/
+.npm
+.eslintcache
+.parcel-cache
+.turbo/
+dist/
+build/
+
+# ==========================================
+# Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+.pytest_cache/
+.mypy_cache/
+
+# ==========================================
+# Java / Maven / Gradle
+# ==========================================
+*.class
+*.bluej
+*.ctxt
+*.jar
+*.war
+*.ear
+target/
+.gradle/
+/build/
+
+# ==========================================
+# Logs and Databases
+# ==========================================
+*.log
+logs/
+*.sqlite
+*.db
