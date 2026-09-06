@@ -180,6 +180,22 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
       status: 'UPCOMING'
     });
 
+    // Grand Finals bracket reset (Bo5) — only played if the Lower Bracket team
+    // wins the Grand Finals. The Upper Bracket team arrives undefeated, so that
+    // first loss is only their first: double elimination needs a second series
+    // to eliminate them.
+    matchesToInsert.push({
+      matchCode: 'GRAND-FINALS-RESET',
+      stage: 'GRAND_FINALS',
+      title: 'Grand Finals - Bracket Reset (if necessary)',
+      bestOf: 5,
+      customNameA: 'Upper Champion',
+      customNameB: 'Lower Champion',
+      scoreA: 0,
+      scoreB: 0,
+      status: 'UPCOMING'
+    });
+
     await Match.insertMany(matchesToInsert);
 
     const io = req.app.get('io');

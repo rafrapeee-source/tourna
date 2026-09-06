@@ -425,6 +425,22 @@
     .br-match:hover { border-color: var(--lp-border-hover); box-shadow: 0 3px 12px rgba(0,0,0,0.45); }
     .br-match.is-final { border-color: var(--lp-gold); }
 
+    /* Bracket reset: conditional until the Lower Bracket team forces it */
+    .br-match.is-void, .br-match.is-final.is-void {
+      opacity: 0.4;
+      border-color: var(--lp-border);
+      border-style: dashed;
+    }
+
+    .br-match.is-void .br-match-code { color: var(--lp-text-muted); }
+    .br-match.is-triggered { box-shadow: 0 0 0 1px rgba(240, 136, 62, 0.35); }
+
+    /* Still hypothetical: dashed edge, muted, but readable */
+    .br-match.is-reset:not(.is-triggered):not(.is-void) {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
     .br-match-head {
       display: flex;
       justify-content: space-between;
@@ -677,13 +693,13 @@
     <!-- 4. PLAYOFFS DOUBLE ELIMINATION BRACKET -->
     <div class="section-title">
       <span>Playoffs (Double Elimination Bracket)</span>
-      <span class="sub">4-Team Double Elimination • Bo3 (Grand Finals Bo5)</span>
+      <span class="sub">4-Team Double Elimination • Bo3 (Grand Finals Bo5 + Bracket Reset)</span>
     </div>
 
     <div class="br-legend">
       <div class="br-legend-item"><span class="br-legend-line win"></span> Winner advances</div>
-      <div class="br-legend-item"><span class="br-legend-line lose"></span> Loser drops to Lower Bracket</div>
-      <div class="br-legend-item">Two losses and a team is out — Lower Bracket is the second chance.</div>
+      <div class="br-legend-item"><span class="br-legend-line lose"></span> Loser drops / conditional path</div>
+      <div class="br-legend-item">Two losses and a team is out. If the Lower Bracket team wins the Grand Finals, the Upper Bracket team has only lost once — the bracket resets and they replay.</div>
     </div>
 
     <div class="bracket-scroll" id="playoffsContainer"></div>
@@ -966,14 +982,9 @@
           `;
         }).join('');
 
-        const roundIsLive = byRound.get(round).some(m => m.status === 'LIVE');
-
         rrContainer.innerHTML += `
           <div>
-            <div class="rr-round-title">
-              <span>${round ? `Round ${round}` : 'Matches'}</span>
-              ${roundIsLive ? '<span class="live-tag"><span class="live-dot"></span>LIVE NOW</span>' : ''}
-            </div>
+            <div class="rr-round-title"><span>${round ? `Round ${round}` : 'Matches'}</span></div>
             <div class="rr-matches-grid">${cards}</div>
           </div>
         `;
@@ -1013,7 +1024,7 @@
     const loserTag = m => { const s = winningSide(m); return s ? sideLabel(m, s === 'A' ? 'B' : 'A').name : null; };
 
     // A match box: header (code + Bo/LIVE) over two team rows
-    function matchNode(m, area, extraClass = '') {
+    function matchNode(m, area, extraClass = '', badge = null) {
       if (!m) return null;
       const won = winningSide(m);
       const a = sideLabel(m, 'A');
@@ -1026,7 +1037,7 @@
             <span class="br-match-code">${esc(m.matchCode)}</span>
             ${m.status === 'LIVE'
               ? '<span class="live-tag"><span class="live-dot"></span>LIVE</span>'
-              : `<span>BO${m.bestOf}</span>`}
+              : `<span>${badge || 'BO' + m.bestOf}</span>`}
           </div>
           <div class="br-slot ${rowClass('A')}">
             <span class="br-slot-name ${a.isTeam ? '' : 'tbd'}">${esc(a.name)}</span>
@@ -1150,14 +1161,28 @@
       const lbR1 = findMatch('LB-R1');
       const lbFinal = findMatch('LB-FINAL');
       const gf = findMatch('GRAND-FINALS');
+      const gfReset = findMatch('GRAND-FINALS-RESET');
 
       if (!ubSF1 && !ubFinal && !gf) {
         host.innerHTML = '<div class="br-empty">Playoff bracket not generated yet.</div>';
         return;
       }
 
+      // Double elimination: the Upper Bracket team reaches the Grand Finals
+      // undefeated. If the Lower Bracket team (side B) wins it, that is only
+      // the Upper team's first loss, so the bracket resets and they replay.
+      const gfWinnerSide = winningSide(gf);
+      const resetTriggered = gfWinnerSide === 'B';
+      const resetAvoided = gfWinnerSide === 'A';
+
+      // The title only goes to a team that has actually lost twice — or not at all
+      const championTag = resetTriggered ? winnerTag(gfReset)
+        : resetAvoided ? winnerTag(gf)
+        : null;
+
       const bracket = el('<div class="bracket"><svg class="bracket-canvas"></svg></div>');
-      bracket.style.gridTemplateColumns = 'auto auto auto auto';
+      const lastCol = gfReset ? 6 : 5;
+      bracket.style.gridTemplateColumns = gfReset ? 'auto auto auto auto auto' : 'auto auto auto auto';
 
       // rows: 1 titles | 2 upper band | 3-4 upper matches | 5 lower band | 6 lower matches
       const nSF1 = matchNode(ubSF1, '3 / 1 / 4 / 2');
@@ -1166,19 +1191,40 @@
       const nLBR1 = matchNode(lbR1, '6 / 1 / 7 / 2');
       const nLBF = matchNode(lbFinal, '6 / 2 / 7 / 3');
       const nGF = matchNode(gf, '3 / 3 / 7 / 4', 'is-final');
-      const nChamp = terminalNode('Champion', winnerTag(gf), 'champ', '3 / 4 / 7 / 5');
+
+      // Reset box states: pending (grey "if necessary"), triggered (gold, in
+      // play), or greyed out once the Upper team closes it out in one series.
+      const nReset = matchNode(
+        gfReset,
+        '3 / 4 / 7 / 5',
+        `is-final is-reset ${resetTriggered ? 'is-triggered' : ''} ${resetAvoided ? 'is-void' : ''}`,
+        resetTriggered ? null : (resetAvoided ? 'NOT PLAYED' : 'IF NECESSARY')
+      );
+
+      const nChamp = terminalNode('Champion', championTag, 'champ', `3 / ${lastCol - 1} / 7 / ${lastCol}`);
 
       bracket.append(
         colTitle('Semifinals', '1 / 1 / 2 / 2'),
         colTitle('Bracket Finals', '1 / 2 / 2 / 3'),
         colTitle('Grand Final (Bo5)', '1 / 3 / 2 / 4'),
-        colTitle('Champion', '1 / 4 / 2 / 5'),
-        bandLabel('Upper Bracket', 'upper', '2 / 1 / 3 / 5'),
-        bandLabel('Lower Bracket — one more life', 'lower', '5 / 1 / 6 / 5')
+        bandLabel('Upper Bracket', 'upper', `2 / 1 / 3 / ${lastCol}`),
+        bandLabel('Lower Bracket — one more life', 'lower', `5 / 1 / 6 / ${lastCol}`)
       );
 
-      [nSF1, nSF2, nUBF, nLBR1, nLBF, nGF, nChamp].forEach(n => n && bracket.appendChild(n));
+      if (gfReset) bracket.appendChild(colTitle('Bracket Reset', '1 / 4 / 2 / 5'));
+      bracket.appendChild(colTitle('Champion', `1 / ${lastCol - 1} / 2 / ${lastCol}`));
+
+      [nSF1, nSF2, nUBF, nLBR1, nLBF, nGF, nReset, nChamp].forEach(n => n && bracket.appendChild(n));
       host.appendChild(bracket);
+
+      // The bracket flows through the reset box when it exists; a reset that is
+      // only conditional is drawn dashed until the lower team forces it.
+      const finalLinks = nReset
+        ? [
+            { from: nGF, to: nReset, color: resetTriggered ? 'win' : 'lose', route: 'forward' },
+            { from: nReset, to: nChamp, color: 'win', route: 'forward' }
+          ]
+        : [{ from: nGF, to: nChamp, color: 'win', route: 'forward' }];
 
       drawLinks(bracket, [
         // winners advance to the right
@@ -1187,7 +1233,7 @@
         { from: nUBF, to: nGF, color: 'win', route: 'forward' },
         { from: nLBR1, to: nLBF, color: 'win', route: 'forward' },
         { from: nLBF, to: nGF, color: 'win', route: 'forward' },
-        { from: nGF, to: nChamp, color: 'win', route: 'forward' },
+        ...finalLinks,
         // losers drop down into the lower bracket
         { from: nSF1, to: nLBR1, color: 'lose', route: 'left', gutter: 18 },
         { from: nSF2, to: nLBR1, color: 'lose', route: 'left', gutter: 32 },
