@@ -292,6 +292,51 @@
       margin: 0 6px;
     }
 
+    /* ================= LIVE MATCH INDICATOR (shared) ================= */
+    .live-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--lp-danger);
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--lp-danger);
+      animation: livePulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    /* A live match glows red and breathes so it is obvious at a glance */
+    .match-box.is-live,
+    .br-match.is-live {
+      border-color: var(--lp-danger);
+      box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.25);
+      animation: liveGlow 2.4s infinite ease-in-out;
+    }
+
+    @keyframes liveGlow {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.25); }
+      50% { box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.45), 0 0 14px rgba(248, 81, 73, 0.28); }
+    }
+
+    .match-box.is-live .match-box-header { color: var(--lp-danger); }
+
+    .match-box.is-live .match-score-pill {
+      color: var(--lp-danger);
+      border-color: rgba(248, 81, 73, 0.45);
+      background: rgba(248, 81, 73, 0.1);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot, .match-box.is-live, .br-match.is-live { animation: none; }
+    }
+
     /* ============ LIQUIPEDIA-STYLE DOUBLE ELIMINATION BRACKET ============ */
     .bracket-scroll {
       overflow-x: auto;
@@ -378,7 +423,6 @@
     }
 
     .br-match:hover { border-color: var(--lp-border-hover); box-shadow: 0 3px 12px rgba(0,0,0,0.45); }
-    .br-match.is-live { border-color: var(--lp-danger); box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.25); }
     .br-match.is-final { border-color: var(--lp-gold); }
 
     .br-match-head {
@@ -398,14 +442,6 @@
 
     .br-match-code { color: var(--lp-primary-blue); }
     .br-match.is-final .br-match-code { color: var(--lp-gold); }
-
-    .br-live-tag { color: var(--lp-danger); display: flex; align-items: center; gap: 4px; }
-    .br-live-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: var(--lp-danger);
-      animation: brPulse 1.2s infinite ease-in-out;
-    }
-    @keyframes brPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
 
     .br-slot {
       display: flex;
@@ -911,11 +947,15 @@
           const winA = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
           const winB = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
 
+          const isLive = m.status === 'LIVE';
+
           return `
-            <div class="match-box" title="${m.title}">
+            <div class="match-box ${isLive ? 'is-live' : ''}" title="${m.title}">
               <div class="match-box-header">
                 <span>${m.matchCode}</span>
-                <span>${m.status === 'LIVE' ? 'LIVE' : 'BO1'}</span>
+                ${isLive
+                  ? '<span class="live-tag"><span class="live-dot"></span>LIVE</span>'
+                  : '<span>BO1</span>'}
               </div>
               <div class="match-row">
                 <span class="match-team team-a ${winA ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagA}</span>
@@ -926,9 +966,14 @@
           `;
         }).join('');
 
+        const roundIsLive = byRound.get(round).some(m => m.status === 'LIVE');
+
         rrContainer.innerHTML += `
           <div>
-            <div class="rr-round-title"><span>${round ? `Round ${round}` : 'Matches'}</span></div>
+            <div class="rr-round-title">
+              <span>${round ? `Round ${round}` : 'Matches'}</span>
+              ${roundIsLive ? '<span class="live-tag"><span class="live-dot"></span>LIVE NOW</span>' : ''}
+            </div>
             <div class="rr-matches-grid">${cards}</div>
           </div>
         `;
@@ -980,7 +1025,7 @@
           <div class="br-match-head">
             <span class="br-match-code">${esc(m.matchCode)}</span>
             ${m.status === 'LIVE'
-              ? '<span class="br-live-tag"><span class="br-live-dot"></span>LIVE</span>'
+              ? '<span class="live-tag"><span class="live-dot"></span>LIVE</span>'
               : `<span>BO${m.bestOf}</span>`}
           </div>
           <div class="br-slot ${rowClass('A')}">
