@@ -772,8 +772,9 @@
 
       <!-- TAB 2: MATCHES & SCORES -->
       <div id="tabMatchesSection" style="display:none;">
-        <div style="margin-bottom:14px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
           <button class="btn btn-primary" id="btnGenTournament">Generate Full Tournament Schedule</button>
+          <button class="btn btn-secondary" id="btnSyncBracket" title="Place round robin seeds and advance winners through the bracket">Advance Teams to Bracket</button>
         </div>
 
         <div class="form-group">
@@ -1511,6 +1512,20 @@
         if (!res.ok) throw new Error((await res.json()).error);
         await loadAllData();
         populateMatchesDropdown();
+      } catch (err) { alert(err.message); }
+    });
+
+    document.getElementById('btnSyncBracket').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/matches/sync-bracket', {
+          method: 'POST',
+          headers: { 'x-admin-key': adminKeyInput.value.trim() }
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error);
+        await loadAllData();
+        populateMatchesDropdown();
+        alert(body.message);
       } catch (err) { alert(err.message); }
     });
 

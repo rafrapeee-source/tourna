@@ -54,6 +54,119 @@ function buildRoundRobinRounds(teamCount) {
   return rounds;
 }
 
+// Round robin ranking used for playoff seeding. This mirrors the standings
+// shown on the page: most wins first, then head-to-head between the teams that
+// are level (a mini league when three or more are tied), then team tag so the
+// order is at least stable. Keep the two in step if either changes.
+function rankTeams(teams, rrMatches) {
+  const stats = new Map();
+  teams.forEach(t => stats.set(String(t._id), { team: t, wins: 0, beat: new Set() }));
+
+  rrMatches.forEach(m => {
+    if (m.status !== 'COMPLETED' || !m.teamA || !m.teamB) return;
+    const a = String(m.teamA);
+    const b = String(m.teamB);
+    if (!stats.has(a) || !stats.has(b)) return;
+
+    if (m.scoreA > m.scoreB) {
+      stats.get(a).wins++;
+      stats.get(a).beat.add(b);
+    } else if (m.scoreB > m.scoreA) {
+      stats.get(b).wins++;
+      stats.get(b).beat.add(a);
+    }
+  });
+
+  const byWins = new Map();
+  stats.forEach(s => {
+    if (!byWins.has(s.wins)) byWins.set(s.wins, []);
+    byWins.get(s.wins).push(s);
+  });
+
+  const ranked = [];
+  [...byWins.keys()].sort((x, y) => y - x).forEach(wins => {
+    const group = byWins.get(wins);
+    group.forEach(s => {
+      s.h2h = group.filter(o => o !== s && s.beat.has(String(o.team._id))).length;
+    });
+    group.sort((a, b) => b.h2h - a.h2h || a.team.tag.localeCompare(b.team.tag));
+    ranked.push(...group);
+  });
+
+  return ranked.map(s => s.team);
+}
+
+// Push teams through the bracket: seed the Play-In and Upper Semifinals off the
+// round robin, then feed every later match from the results before it. Slots are
+// derived, so correcting an earlier result re-flows everything after it, and a
+// slot whose source is still undecided goes back to its placeholder.
+async function syncBracket(io) {
+  const teams = await Team.find().sort({ seed: 1, createdAt: 1 }).limit(5);
+  const matches = await Match.find();
+
+  const byCode = {};
+  matches.forEach(m => { byCode[m.matchCode] = m; });
+
+  // Seeding is only meaningful once the whole round robin has been played
+  const rr = matches.filter(m => m.stage === 'ROUND_ROBIN');
+  const rrComplete = rr.length > 0 && rr.every(m => m.status === 'COMPLETED');
+  const seeds = rrComplete ? rankTeams(teams, rr) : [];
+
+  const decided = code => {
+    const m = byCode[code];
+    if (!m || m.status !== 'COMPLETED' || !m.teamA || !m.teamB) return null;
+    if (m.scoreA > m.scoreB) return { winner: m.teamA, loser: m.teamB };
+    if (m.scoreB > m.scoreA) return { winner: m.teamB, loser: m.teamA };
+    return null; // a draw decides nothing
+  };
+
+  const winnerOf = code => (decided(code) || {}).winner || null;
+  const loserOf = code => (decided(code) || {}).loser || null;
+
+  // Order matters: each entry may read slots filled by the entries above it
+  const wiring = [
+    ['PLAY-IN', () => [seeds[3], seeds[4]]],
+    ['UB-SF1', () => [seeds[0], seeds[1]]],
+    ['UB-SF2', () => [seeds[2], winnerOf('PLAY-IN')]],
+    ['UB-FINAL', () => [winnerOf('UB-SF1'), winnerOf('UB-SF2')]],
+    ['LB-R1', () => [loserOf('UB-SF1'), loserOf('UB-SF2')]],
+    ['LB-FINAL', () => [loserOf('UB-FINAL'), winnerOf('LB-R1')]],
+    ['GRAND-FINALS', () => [winnerOf('UB-FINAL'), winnerOf('LB-FINAL')]],
+    // The reset is a replay of the Grand Finals, so it inherits the same pair
+    ['GRAND-FINALS-RESET', () => {
+      const gf = byCode['GRAND-FINALS'];
+      return gf ? [gf.teamA, gf.teamB] : [null, null];
+    }]
+  ];
+
+  // A resolver returns a team id to place it, null when the source is played
+  // but undecided (so the slot clears and shows its placeholder again), or
+  // undefined when the source cannot be read yet - an unfinished round robin
+  // has no seeds - in which case whatever is already there is left untouched.
+  const nextSlot = (value, current) => (value === undefined ? current || null : (value ? String(value) : null));
+
+  const updated = [];
+  for (const [code, resolve] of wiring) {
+    const match = byCode[code];
+    if (!match) continue;
+
+    const [a, b] = resolve();
+    const nextA = nextSlot(a, match.teamA);
+    const nextB = nextSlot(b, match.teamB);
+
+    if (String(match.teamA || '') !== String(nextA || '') ||
+        String(match.teamB || '') !== String(nextB || '')) {
+      match.teamA = nextA;
+      match.teamB = nextB;
+      updated.push(match.save());
+    }
+  }
+
+  await Promise.all(updated);
+  if (updated.length && io) io.emit('matchesUpdated');
+  return updated.length;
+}
+
 // Generate Full Tournament (Round Robin + Play-In + Double Elim Bracket)
 router.post('/generate-tournament', authAdmin, async (req, res) => {
   try {
@@ -209,6 +322,21 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
   }
 });
 
+// Re-flow the bracket on demand, for schedules whose results were entered
+// before advancement existed
+router.post('/sync-bracket', authAdmin, async (req, res) => {
+  try {
+    const changed = await syncBracket(req.app.get('io'));
+    res.json({
+      message: changed
+        ? `Bracket updated: ${changed} match(es) had teams placed.`
+        : "Bracket is already up to date. Seeding is placed once every round robin match is marked COMPLETED."
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Update match score & team assignment
 router.put('/:id', authAdmin, async (req, res) => {
   try {
@@ -236,6 +364,10 @@ router.put('/:id', authAdmin, async (req, res) => {
     await match.save();
 
     const io = req.app.get('io');
+
+    // A result can decide who plays next, so re-flow the bracket after every save
+    await syncBracket(io);
+
     if (io) io.emit('matchesUpdated');
 
     res.json(match);
