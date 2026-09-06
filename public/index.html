@@ -221,28 +221,6 @@
     .seed-4 { background: rgba(139, 148, 158, 0.15); color: #c9d1d9; border: 1px solid var(--lp-border); }
     .seed-5 { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
 
-    /* Marks a placing that was decided by a tiebreaker */
-    .tie-badge {
-      display: inline-block;
-      margin-left: 5px;
-      padding: 1px 4px;
-      border-radius: 3px;
-      font-size: 8.5px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      vertical-align: middle;
-      cursor: help;
-      background: rgba(88, 166, 255, 0.15);
-      color: var(--lp-primary-blue);
-      border: 1px solid rgba(88, 166, 255, 0.35);
-    }
-
-    .tie-badge.unresolved {
-      background: rgba(240, 136, 62, 0.15);
-      color: var(--lp-gold);
-      border-color: rgba(240, 136, 62, 0.4);
-    }
-
     .standings-note {
       padding: 7px 10px;
       font-size: 10.5px;
@@ -708,9 +686,7 @@
           <tbody id="standingsTableBody"></tbody>
         </table>
         <div class="standings-note">
-          <b>Tiebreakers:</b> 1) most wins, 2) head-to-head between the tied teams.
-          <b class="tie-badge">H2H</b> marks a placing settled on head-to-head.
-          <b class="tie-badge unresolved">TIE</b> means head-to-head cannot separate them and a tiebreaker match is needed.
+          <b>Tiebreakers:</b> teams level on wins are placed on head-to-head record between them.
         </div>
       </div>
 
@@ -966,9 +942,9 @@
       //      is simply who won their match; for three or more it is a mini
       //      league counting wins against the others in the tie.
       //   3. Team tag, so the order is at least stable and repeatable rather
-      //      than dependent on database order. This is not a real tiebreaker:
-      //      anyone separated only by step 3 is flagged as unresolved, because
-      //      that placing needs a tiebreaker match to be decided fairly.
+      //      than dependent on database order. This is not a real tiebreaker —
+      //      a placing that comes down to it needs a tiebreaker match to be
+      //      decided fairly.
       const anyPlayed = rrMatches.some(m => m.status === 'COMPLETED');
       const byWins = new Map();
       Object.values(statsMap).forEach(s => {
@@ -983,16 +959,8 @@
         if (group.length > 1 && anyPlayed) {
           group.forEach(s => {
             s.h2hWins = group.filter(o => o !== s && s.beat.includes(o.team._id)).length;
-            s.tiedCount = group.length;
           });
           group.sort((a, b) => b.h2hWins - a.h2hWins || a.team.tag.localeCompare(b.team.tag));
-
-          // Head-to-head left these level too — the placing is not truly decided
-          group.forEach((s, i) => {
-            const prev = group[i - 1];
-            const next = group[i + 1];
-            s.unresolved = (prev && prev.h2hWins === s.h2hWins) || (next && next.h2hWins === s.h2hWins);
-          });
         }
 
         sortedStandings.push(...group);
@@ -1004,19 +972,11 @@
         const seedNum = i + 1;
         const winRate = item && item.played > 0 ? Math.round((item.wins / item.played) * 100) : 0;
 
-        // Show how a tied placing was settled, rather than settling it silently
-        let tieBadge = '';
-        if (item && item.tiedCount) {
-          tieBadge = item.unresolved
-            ? `<span class="tie-badge unresolved" title="Level on wins with ${item.tiedCount - 1} other team(s), and head-to-head does not separate them. This placing needs a tiebreaker match.">TIE</span>`
-            : `<span class="tie-badge" title="Level on wins with ${item.tiedCount - 1} other team(s); placed ahead on head-to-head record (${item.h2hWins} win(s) against the tied teams).">H2H</span>`;
-        }
-
         tbody.innerHTML += `
           <tr>
             <td><span class="seed-badge seed-${seedNum}">#${seedNum} Seed</span></td>
             <td style="font-weight: 700;">
-              ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span>${tieBadge} <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
+              ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span> <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
             </td>
             <td style="text-align: center; font-weight: 800;">
               ${item ? `<span style="color:var(--lp-green);">${item.wins}</span> - <span style="color:var(--lp-danger);">${item.losses}</span>` : '0 - 0'}
