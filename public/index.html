@@ -221,6 +221,39 @@
     .seed-4 { background: rgba(139, 148, 158, 0.15); color: #c9d1d9; border: 1px solid var(--lp-border); }
     .seed-5 { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
 
+    /* Marks a placing that was decided by a tiebreaker */
+    .tie-badge {
+      display: inline-block;
+      margin-left: 5px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+      cursor: help;
+      background: rgba(88, 166, 255, 0.15);
+      color: var(--lp-primary-blue);
+      border: 1px solid rgba(88, 166, 255, 0.35);
+    }
+
+    .tie-badge.unresolved {
+      background: rgba(240, 136, 62, 0.15);
+      color: var(--lp-gold);
+      border-color: rgba(240, 136, 62, 0.4);
+    }
+
+    .standings-note {
+      padding: 7px 10px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      color: var(--lp-text-muted);
+      background: var(--lp-row-alt);
+      border-top: 1px solid var(--lp-border);
+    }
+
+    .standings-note b { color: var(--lp-text-main); font-weight: 700; }
+
     /* MATCHES LIST */
     .rr-rounds { display: flex; flex-direction: column; gap: 14px; }
 
@@ -350,14 +383,17 @@
 
     /* grid holds the nodes, the svg underneath holds the connector lines */
     .bracket {
+      --br-card: 200px;
+      --br-gap: 34px;
       position: relative;
       display: grid;
       justify-content: start;
       align-items: center;
-      column-gap: 54px;
-      row-gap: 14px;
-      padding: 4px 4px 4px 46px; /* left gutter = routing space for loser drop lines */
+      column-gap: var(--br-gap);
+      row-gap: 12px;
+      padding: 4px 4px 4px 34px; /* left gutter = routing space for loser drop lines */
       min-width: max-content;
+      transform-origin: top left;
     }
 
     .bracket-canvas {
@@ -414,7 +450,7 @@
 
     /* Match node */
     .br-match {
-      width: 232px;
+      width: var(--br-card);
       background: var(--lp-card-bg);
       border: 1px solid var(--lp-border);
       border-radius: 4px;
@@ -504,7 +540,7 @@
 
     /* Terminal nodes: champion / qualified / eliminated */
     .br-node {
-      width: 232px;
+      width: var(--br-card);
       border-radius: 4px;
       border: 1px dashed var(--lp-border);
       background: rgba(255, 255, 255, 0.015);
@@ -671,6 +707,11 @@
           </thead>
           <tbody id="standingsTableBody"></tbody>
         </table>
+        <div class="standings-note">
+          <b>Tiebreakers:</b> 1) most wins, 2) head-to-head between the tied teams.
+          <b class="tie-badge">H2H</b> marks a placing settled on head-to-head.
+          <b class="tie-badge unresolved">TIE</b> means head-to-head cannot separate them and a tiebreaker match is needed.
+        </div>
       </div>
 
       <!-- 10 Bo1 Matches Grid -->
@@ -891,10 +932,11 @@
 
       const rrMatches = matchesData.filter(m => m.stage === 'ROUND_ROBIN');
 
-      // Standings calculation
+      // Standings calculation. `beat` records who each team has beaten, which
+      // is what the head-to-head tiebreaker runs on.
       const statsMap = {};
       teamsData.forEach(t => {
-        statsMap[t._id] = { team: t, wins: 0, losses: 0, played: 0 };
+        statsMap[t._id] = { team: t, wins: 0, losses: 0, played: 0, beat: [] };
       });
 
       rrMatches.forEach(m => {
@@ -908,17 +950,52 @@
             if (m.scoreA > m.scoreB) {
               statsMap[idA].wins++;
               statsMap[idB].losses++;
+              statsMap[idA].beat.push(idB);
             } else if (m.scoreB > m.scoreA) {
               statsMap[idB].wins++;
               statsMap[idA].losses++;
+              statsMap[idB].beat.push(idA);
             }
           }
         }
       });
 
-      const sortedStandings = Object.values(statsMap).sort((a, b) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        return a.losses - b.losses;
+      // Seeding order, tiebreakers in priority order:
+      //   1. Most wins.
+      //   2. Head-to-head among only the teams still tied. For two teams that
+      //      is simply who won their match; for three or more it is a mini
+      //      league counting wins against the others in the tie.
+      //   3. Team tag, so the order is at least stable and repeatable rather
+      //      than dependent on database order. This is not a real tiebreaker:
+      //      anyone separated only by step 3 is flagged as unresolved, because
+      //      that placing needs a tiebreaker match to be decided fairly.
+      const anyPlayed = rrMatches.some(m => m.status === 'COMPLETED');
+      const byWins = new Map();
+      Object.values(statsMap).forEach(s => {
+        if (!byWins.has(s.wins)) byWins.set(s.wins, []);
+        byWins.get(s.wins).push(s);
+      });
+
+      const sortedStandings = [];
+      [...byWins.keys()].sort((a, b) => b - a).forEach(wins => {
+        const group = byWins.get(wins);
+
+        if (group.length > 1 && anyPlayed) {
+          group.forEach(s => {
+            s.h2hWins = group.filter(o => o !== s && s.beat.includes(o.team._id)).length;
+            s.tiedCount = group.length;
+          });
+          group.sort((a, b) => b.h2hWins - a.h2hWins || a.team.tag.localeCompare(b.team.tag));
+
+          // Head-to-head left these level too — the placing is not truly decided
+          group.forEach((s, i) => {
+            const prev = group[i - 1];
+            const next = group[i + 1];
+            s.unresolved = (prev && prev.h2hWins === s.h2hWins) || (next && next.h2hWins === s.h2hWins);
+          });
+        }
+
+        sortedStandings.push(...group);
       });
 
       // Render Standings
@@ -927,11 +1004,19 @@
         const seedNum = i + 1;
         const winRate = item && item.played > 0 ? Math.round((item.wins / item.played) * 100) : 0;
 
+        // Show how a tied placing was settled, rather than settling it silently
+        let tieBadge = '';
+        if (item && item.tiedCount) {
+          tieBadge = item.unresolved
+            ? `<span class="tie-badge unresolved" title="Level on wins with ${item.tiedCount - 1} other team(s), and head-to-head does not separate them. This placing needs a tiebreaker match.">TIE</span>`
+            : `<span class="tie-badge" title="Level on wins with ${item.tiedCount - 1} other team(s); placed ahead on head-to-head record (${item.h2hWins} win(s) against the tied teams).">H2H</span>`;
+        }
+
         tbody.innerHTML += `
           <tr>
             <td><span class="seed-badge seed-${seedNum}">#${seedNum} Seed</span></td>
             <td style="font-weight: 700;">
-              ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span> <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
+              ${item ? `<span style="color:var(--lp-primary-blue);">${item.team.tag}</span>${tieBadge} <span style="font-size:11px; color:var(--lp-text-muted); font-weight:normal;">(${item.team.name})</span>` : '<span style="color:var(--lp-text-muted);">TBD</span>'}
             </td>
             <td style="text-align: center; font-weight: 800;">
               ${item ? `<span style="color:var(--lp-green);">${item.wins}</span> - <span style="color:var(--lp-danger);">${item.losses}</span>` : '0 - 0'}
@@ -1078,6 +1163,24 @@
       return node;
     }
 
+    // Shrink the bracket to fit its container instead of scrolling sideways.
+    // Layout coordinates are unaffected by the transform, so the connector
+    // lines drawn from offsetLeft/offsetTop stay aligned at any scale.
+    const MIN_BRACKET_SCALE = 0.55; // below this the text stops being readable
+    function fitBracket(host, bracket) {
+      bracket.style.transform = 'none';
+      host.style.height = '';
+
+      const available = host.clientWidth;
+      const needed = bracket.scrollWidth;
+      if (!available || needed <= available) return;
+
+      const scale = Math.max(MIN_BRACKET_SCALE, available / needed);
+      bracket.style.transform = `scale(${scale})`;
+      // The transform does not shrink the box, so reclaim the leftover space
+      host.style.height = Math.ceil(bracket.offsetHeight * scale) + 'px';
+    }
+
     // Where a connector attaches vertically. On a match box that is the middle
     // of the two team rows, not the middle of the whole box — the header bar
     // would otherwise push every line up into the top row.
@@ -1148,6 +1251,8 @@
         { from: match, to: qualified, color: 'win', route: 'forward' },
         { from: match, to: eliminated, color: 'lose', route: 'forward' }
       ]);
+
+      fitBracket(host, bracket);
     }
 
     // 4. Playoffs — 4-team double elimination laid out Liquipedia style
@@ -1239,6 +1344,8 @@
         { from: nSF2, to: nLBR1, color: 'lose', route: 'left', gutter: 32 },
         { from: nUBF, to: nLBF, color: 'lose', route: 'left', gutter: 18 }
       ]);
+
+      fitBracket(host, bracket);
     }
 
     // Connector geometry depends on layout, so redraw when the viewport changes
