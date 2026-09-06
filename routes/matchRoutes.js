@@ -110,7 +110,8 @@ async function syncBracket(io) {
   // Seeding is only meaningful once the whole round robin has been played
   const rr = matches.filter(m => m.stage === 'ROUND_ROBIN');
   const rrComplete = rr.length > 0 && rr.every(m => m.status === 'COMPLETED');
-  const seeds = rrComplete ? rankTeams(teams, rr) : [];
+  // Ids, not documents — these get written straight into team reference fields
+  const seeds = (rrComplete ? rankTeams(teams, rr) : []).map(t => t._id);
 
   const decided = code => {
     const m = byCode[code];
@@ -143,7 +144,11 @@ async function syncBracket(io) {
   // but undecided (so the slot clears and shows its placeholder again), or
   // undefined when the source cannot be read yet - an unfinished round robin
   // has no seeds - in which case whatever is already there is left untouched.
-  const nextSlot = (value, current) => (value === undefined ? current || null : (value ? String(value) : null));
+  // Accept an id or a populated document, and never stringify a whole document
+  // into a reference field
+  const idOf = v => (v && v._id ? v._id : v);
+  const nextSlot = (value, current) =>
+    (value === undefined ? idOf(current) || null : (value ? String(idOf(value)) : null));
 
   const updated = [];
   for (const [code, resolve] of wiring) {
