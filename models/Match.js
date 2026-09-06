@@ -8,6 +8,7 @@ const matchSchema = new mongoose.Schema({
     required: true 
   },
   title: { type: String, required: true },
+  round: { type: Number, default: 0 }, // round robin round number (0 for bracket matches)
   bestOf: { type: Number, default: 1 },
   teamA: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
   teamB: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },

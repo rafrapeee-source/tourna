@@ -222,6 +222,22 @@
     .seed-5 { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
 
     /* MATCHES LIST */
+    .rr-rounds { display: flex; flex-direction: column; gap: 14px; }
+
+    .rr-round-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--lp-text-muted);
+      margin-bottom: 6px;
+    }
+
+    .rr-round-title::after { content: ""; flex: 1; height: 1px; background: var(--lp-border); }
+
     .rr-matches-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -276,71 +292,219 @@
       margin: 0 6px;
     }
 
-    /* ================= 3. PLAY-IN QUALIFIER ================= */
-    .playin-container {
-      max-width: 450px;
-      margin-bottom: 24px;
+    /* ============ LIQUIPEDIA-STYLE DOUBLE ELIMINATION BRACKET ============ */
+    .bracket-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 4px 0 14px 0;
     }
 
-    /* ================= 4. PLAYOFFS BRACKET ================= */
-    .bracket-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+    .bracket-scroll::-webkit-scrollbar { height: 8px; }
+    .bracket-scroll::-webkit-scrollbar-track { background: var(--lp-input-bg); border-radius: 4px; }
+    .bracket-scroll::-webkit-scrollbar-thumb { background: var(--lp-border); border-radius: 4px; }
 
-    .bracket-stage-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--lp-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .bracket-grid {
+    /* grid holds the nodes, the svg underneath holds the connector lines */
+    .bracket {
+      position: relative;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      justify-content: start;
       align-items: center;
+      column-gap: 54px;
+      row-gap: 14px;
+      padding: 4px 4px 4px 46px; /* left gutter = routing space for loser drop lines */
+      min-width: max-content;
     }
 
-    .bracket-match-card {
+    .bracket-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: visible;
+    }
+
+    .bracket > *:not(.bracket-canvas) { position: relative; z-index: 1; }
+
+    /* Connector lines. Styled here (not via SVG presentation attributes) so the
+       theme variables resolve reliably across browsers. */
+    .br-line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+    .br-line.win { stroke: var(--lp-primary-blue); opacity: 0.85; }
+    .br-line.lose { stroke: var(--lp-gold); opacity: 0.6; stroke-dasharray: 4 4; }
+
+    /* Column header ("Semifinals", "Grand Final", ...) */
+    .br-col-title {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--lp-text-muted);
+      text-align: center;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--lp-border);
+      align-self: end;
+    }
+
+    /* Row band label ("Upper Bracket" / "Lower Bracket") */
+    .br-band {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin: 6px 0 2px 0;
+    }
+
+    .br-band::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--lp-border);
+    }
+
+    .br-band.upper { color: var(--lp-primary-blue); }
+    .br-band.lower { color: var(--lp-gold); }
+
+    /* Match node */
+    .br-match {
+      width: 232px;
       background: var(--lp-card-bg);
       border: 1px solid var(--lp-border);
-      border-radius: 5px;
+      border-radius: 4px;
       overflow: hidden;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .bracket-match-header {
-      background: var(--lp-header-bg);
-      padding: 5px 10px;
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--lp-primary-blue);
-      border-bottom: 1px solid var(--lp-border);
-      display: flex;
-      justify-content: space-between;
-    }
+    .br-match:hover { border-color: var(--lp-border-hover); box-shadow: 0 3px 12px rgba(0,0,0,0.45); }
+    .br-match.is-live { border-color: var(--lp-danger); box-shadow: 0 0 0 1px rgba(248, 81, 73, 0.25); }
+    .br-match.is-final { border-color: var(--lp-gold); }
 
-    .bracket-slot {
+    .br-match-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 10px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      font-weight: 600;
+      gap: 6px;
+      background: var(--lp-header-bg);
+      border-bottom: 1px solid var(--lp-border);
+      padding: 3px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--lp-text-muted);
     }
 
-    .bracket-slot:last-child { border-bottom: none; }
-    .bracket-slot.winner { background: rgba(63, 185, 80, 0.08); color: var(--lp-green); }
-    .bracket-slot-score {
-      font-weight: 800;
-      background: var(--lp-header-bg);
-      padding: 1px 6px;
-      border-radius: 3px;
-      border: 1px solid var(--lp-border);
+    .br-match-code { color: var(--lp-primary-blue); }
+    .br-match.is-final .br-match-code { color: var(--lp-gold); }
+
+    .br-live-tag { color: var(--lp-danger); display: flex; align-items: center; gap: 4px; }
+    .br-live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--lp-danger);
+      animation: brPulse 1.2s infinite ease-in-out;
     }
+    @keyframes brPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    .br-slot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 8px 5px 7px;
+      border-left: 3px solid transparent;
+    }
+
+    .br-slot + .br-slot { border-top: 1px solid rgba(255, 255, 255, 0.05); }
+
+    .br-slot-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .br-slot-name.tbd {
+      font-size: 11px;
+      font-weight: 600;
+      font-style: italic;
+      color: var(--lp-text-muted);
+    }
+
+    .br-slot-score {
+      flex: none;
+      min-width: 24px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      background: var(--lp-input-bg);
+      border: 1px solid var(--lp-border);
+      border-radius: 3px;
+      padding: 0 5px;
+    }
+
+    .br-slot.win { background: rgba(63, 185, 80, 0.09); border-left-color: var(--lp-green); }
+    .br-slot.win .br-slot-name { color: var(--lp-green); }
+    .br-slot.win .br-slot-score { color: var(--lp-green); border-color: rgba(63, 185, 80, 0.45); }
+    .br-slot.lose .br-slot-name, .br-slot.lose .br-slot-score { color: var(--lp-text-muted); opacity: 0.6; }
+
+    /* Terminal nodes: champion / qualified / eliminated */
+    .br-node {
+      width: 232px;
+      border-radius: 4px;
+      border: 1px dashed var(--lp-border);
+      background: rgba(255, 255, 255, 0.015);
+      padding: 8px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--lp-text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .br-node .br-node-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .br-node .br-node-team { font-size: 14px; font-weight: 800; color: var(--lp-text-main); }
+    .br-node .br-node-team.tbd { font-size: 12px; font-weight: 600; font-style: italic; color: var(--lp-text-muted); }
+
+    .br-node.champ {
+      border: 1px solid var(--lp-gold);
+      background: rgba(240, 136, 62, 0.1);
+    }
+    .br-node.champ .br-node-label { color: var(--lp-gold); }
+    .br-node.champ .br-node-team { color: var(--lp-gold); }
+
+    .br-node.qualified { border-color: rgba(63, 185, 80, 0.5); background: rgba(63, 185, 80, 0.07); }
+    .br-node.qualified .br-node-label { color: var(--lp-green); }
+
+    .br-node.out { border-color: rgba(248, 81, 73, 0.4); background: rgba(248, 81, 73, 0.06); }
+    .br-node.out .br-node-label { color: var(--lp-danger); }
+
+    /* Legend */
+    .br-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      font-size: 10.5px;
+      color: var(--lp-text-muted);
+      margin-bottom: 10px;
+    }
+
+    .br-legend-item { display: flex; align-items: center; gap: 6px; }
+    .br-legend-line { width: 22px; height: 0; border-top-width: 2px; }
+    .br-legend-line.win { border-top: 2px solid var(--lp-primary-blue); }
+    .br-legend-line.lose { border-top: 2px dashed var(--lp-gold); }
+
+    .br-empty { color: var(--lp-text-muted); padding: 10px 0; }
 
     /* ================= ADMIN MODAL ================= */
     .admin-modal-overlay {
@@ -458,7 +622,7 @@
       </div>
 
       <!-- 10 Bo1 Matches Grid -->
-      <div class="rr-matches-grid" id="rrMatchesContainer"></div>
+      <div class="rr-rounds" id="rrMatchesContainer"></div>
     </div>
 
     <!-- 3. PLAY-IN WILDCARD MATCH (4th vs 5th Seed) -->
@@ -466,7 +630,13 @@
       <span>Play-In Qualifier (Best of 3)</span>
       <span class="sub">Winner advances to Upper Semifinal 2 against #3 Seed • Loser is Eliminated</span>
     </div>
-    <div class="playin-container" id="playinContainer"></div>
+
+    <div class="br-legend">
+      <div class="br-legend-item"><span class="br-legend-line win"></span> Winner advances</div>
+      <div class="br-legend-item"><span class="br-legend-line lose"></span> Loser drops / eliminated</div>
+    </div>
+
+    <div class="bracket-scroll" id="playinContainer"></div>
 
     <!-- 4. PLAYOFFS DOUBLE ELIMINATION BRACKET -->
     <div class="section-title">
@@ -474,25 +644,13 @@
       <span class="sub">4-Team Double Elimination • Bo3 (Grand Finals Bo5)</span>
     </div>
 
-    <div class="bracket-wrapper">
-      <!-- Upper Bracket -->
-      <div>
-        <div class="bracket-stage-title">Upper Bracket</div>
-        <div class="bracket-grid" id="upperBracketContainer"></div>
-      </div>
-
-      <!-- Lower Bracket -->
-      <div>
-        <div class="bracket-stage-title">Lower Bracket</div>
-        <div class="bracket-grid" id="lowerBracketContainer"></div>
-      </div>
-
-      <!-- Grand Finals -->
-      <div>
-        <div class="bracket-stage-title">Grand Finals</div>
-        <div class="bracket-grid" id="grandFinalsContainer" style="max-width: 320px;"></div>
-      </div>
+    <div class="br-legend">
+      <div class="br-legend-item"><span class="br-legend-line win"></span> Winner advances</div>
+      <div class="br-legend-item"><span class="br-legend-line lose"></span> Loser drops to Lower Bracket</div>
+      <div class="br-legend-item">Two losses and a team is out — Lower Bracket is the second chance.</div>
     </div>
+
+    <div class="bracket-scroll" id="playoffsContainer"></div>
 
   </div>
 
@@ -733,83 +891,264 @@
         `;
       }
 
-      // Render 10 Matches
+      // Render matches, grouped by round (each round every team plays at most once)
       if (rrMatches.length === 0) {
         rrContainer.innerHTML = '<div style="color:var(--lp-text-muted); padding:10px;">Round Robin schedule not generated.</div>';
-      } else {
-        rrMatches.forEach(m => {
+        return;
+      }
+
+      const byRound = new Map();
+      rrMatches.forEach(m => {
+        const round = m.round || 0;
+        if (!byRound.has(round)) byRound.set(round, []);
+        byRound.get(round).push(m);
+      });
+
+      [...byRound.keys()].sort((a, b) => a - b).forEach(round => {
+        const cards = byRound.get(round).map(m => {
           const tagA = m.teamA ? m.teamA.tag : "TBD";
           const tagB = m.teamB ? m.teamB.tag : "TBD";
           const winA = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
           const winB = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
 
-          rrContainer.innerHTML += `
-            <div class="match-box">
+          return `
+            <div class="match-box" title="${m.title}">
               <div class="match-box-header">
                 <span>${m.matchCode}</span>
-                <span>BO1</span>
+                <span>${m.status === 'LIVE' ? 'LIVE' : 'BO1'}</span>
               </div>
               <div class="match-row">
-                <span class="match-team team-a ${winA ? 'winner' : (m.status==='COMPLETED'?'loser':'')}">${tagA}</span>
+                <span class="match-team team-a ${winA ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagA}</span>
                 <span class="match-score-pill">${m.scoreA} : ${m.scoreB}</span>
-                <span class="match-team team-b ${winB ? 'winner' : (m.status==='COMPLETED'?'loser':'')}">${tagB}</span>
+                <span class="match-team team-b ${winB ? 'winner' : (m.status === 'COMPLETED' ? 'loser' : '')}">${tagB}</span>
               </div>
             </div>
           `;
-        });
-      }
+        }).join('');
+
+        rrContainer.innerHTML += `
+          <div>
+            <div class="rr-round-title"><span>${round ? `Round ${round}` : 'Matches'}</span></div>
+            <div class="rr-matches-grid">${cards}</div>
+          </div>
+        `;
+      });
     }
 
-    // Helper for rendering bracket cards
-    function createBracketCard(m) {
-      if (!m) return '';
-      const tagA = m.teamA ? m.teamA.tag : (m.customNameA || "TBD");
-      const tagB = m.teamB ? m.teamB.tag : (m.customNameB || "TBD");
-      const winA = m.status === 'COMPLETED' && m.scoreA > m.scoreB;
-      const winB = m.status === 'COMPLETED' && m.scoreB > m.scoreA;
+    // ================= LIQUIPEDIA-STYLE BRACKET ENGINE =================
 
-      return `
-        <div class="bracket-match-card">
-          <div class="bracket-match-header">
-            <span>${m.title}</span>
-            <span>BO${m.bestOf}</span>
+    function esc(str) {
+      return String(str).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    function el(html) {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      return tpl.content.firstElementChild;
+    }
+
+    const findMatch = code => matchesData.find(m => m.matchCode === code);
+
+    // Which side won: 'A', 'B' or null while the match is unresolved
+    function winningSide(m) {
+      if (!m || m.status !== 'COMPLETED') return null;
+      if (m.scoreA > m.scoreB) return 'A';
+      if (m.scoreB > m.scoreA) return 'B';
+      return null;
+    }
+
+    // Display name for one side: real team tag, else the placeholder ("#3 Seed")
+    function sideLabel(m, side) {
+      const team = side === 'A' ? m.teamA : m.teamB;
+      const custom = side === 'A' ? m.customNameA : m.customNameB;
+      return { name: team ? team.tag : (custom || 'TBD'), isTeam: !!team };
+    }
+
+    const winnerTag = m => { const s = winningSide(m); return s ? sideLabel(m, s).name : null; };
+    const loserTag = m => { const s = winningSide(m); return s ? sideLabel(m, s === 'A' ? 'B' : 'A').name : null; };
+
+    // A match box: header (code + Bo/LIVE) over two team rows
+    function matchNode(m, area, extraClass = '') {
+      if (!m) return null;
+      const won = winningSide(m);
+      const a = sideLabel(m, 'A');
+      const b = sideLabel(m, 'B');
+      const rowClass = side => won ? (won === side ? 'win' : 'lose') : '';
+
+      const node = el(`
+        <div class="br-match ${extraClass} ${m.status === 'LIVE' ? 'is-live' : ''}">
+          <div class="br-match-head">
+            <span class="br-match-code">${esc(m.matchCode)}</span>
+            ${m.status === 'LIVE'
+              ? '<span class="br-live-tag"><span class="br-live-dot"></span>LIVE</span>'
+              : `<span>BO${m.bestOf}</span>`}
           </div>
-          <div class="bracket-slot ${winA ? 'winner' : ''}">
-            <span>${tagA}</span>
-            <span class="bracket-slot-score">${m.scoreA}</span>
+          <div class="br-slot ${rowClass('A')}">
+            <span class="br-slot-name ${a.isTeam ? '' : 'tbd'}">${esc(a.name)}</span>
+            <span class="br-slot-score">${m.scoreA}</span>
           </div>
-          <div class="bracket-slot ${winB ? 'winner' : ''}">
-            <span>${tagB}</span>
-            <span class="bracket-slot-score">${m.scoreB}</span>
+          <div class="br-slot ${rowClass('B')}">
+            <span class="br-slot-name ${b.isTeam ? '' : 'tbd'}">${esc(b.name)}</span>
+            <span class="br-slot-score">${m.scoreB}</span>
           </div>
         </div>
-      `;
+      `);
+      node.title = `${m.title} • ${m.status}`;
+      node.style.gridArea = area;
+      return node;
     }
 
-    // 3. Render Play-In Qualifier (4th vs 5th)
+    // Terminal box: champion / qualified / eliminated
+    function terminalNode(label, team, variant, area) {
+      const node = el(`
+        <div class="br-node ${variant}">
+          <span class="br-node-label">${esc(label)}</span>
+          <span class="br-node-team ${team ? '' : 'tbd'}">${esc(team || 'TBD')}</span>
+        </div>
+      `);
+      node.style.gridArea = area;
+      return node;
+    }
+
+    function colTitle(text, area) {
+      const node = el(`<div class="br-col-title">${esc(text)}</div>`);
+      node.style.gridArea = area;
+      return node;
+    }
+
+    function bandLabel(text, variant, area) {
+      const node = el(`<div class="br-band ${variant}"><span>${esc(text)}</span></div>`);
+      node.style.gridArea = area;
+      return node;
+    }
+
+    // Draw the connector lines onto the SVG that sits behind the nodes.
+    // route 'forward' = elbow from the right edge into the next column;
+    // route 'left'    = loser drop, routed around the left gutter.
+    function drawLinks(bracket, links) {
+      const svg = bracket.querySelector('.bracket-canvas');
+      svg.setAttribute('width', bracket.scrollWidth);
+      svg.setAttribute('height', bracket.scrollHeight);
+
+      svg.innerHTML = links.map(link => {
+        if (!link.from || !link.to) return '';
+
+        const from = link.from;
+        const to = link.to;
+        const fromMidY = from.offsetTop + from.offsetHeight / 2;
+        const toMidY = to.offsetTop + to.offsetHeight / 2;
+
+        let d;
+        if (link.route === 'left') {
+          const gutterX = Math.min(from.offsetLeft, to.offsetLeft) - (link.gutter || 20);
+          d = `M ${from.offsetLeft} ${fromMidY} H ${gutterX} V ${toMidY} H ${to.offsetLeft}`;
+        } else {
+          const startX = from.offsetLeft + from.offsetWidth;
+          const endX = to.offsetLeft;
+          const midX = startX + Math.max(14, (endX - startX) / 2);
+          d = `M ${startX} ${fromMidY} H ${midX} V ${toMidY} H ${endX}`;
+        }
+
+        return `<path class="br-line ${link.color === 'lose' ? 'lose' : 'win'}" d="${d}"/>`;
+      }).join('');
+    }
+
+    // 3. Play-In Qualifier — one Bo3 feeding a qualified / eliminated outcome
     function renderPlayIn() {
-      const container = document.getElementById('playinContainer');
-      const playInMatch = matchesData.find(m => m.matchCode === 'PLAY-IN');
-      container.innerHTML = playInMatch ? createBracketCard(playInMatch) : '<span style="color:var(--lp-text-muted);">Play-in match pending generation.</span>';
+      const host = document.getElementById('playinContainer');
+      host.innerHTML = '';
+
+      const m = findMatch('PLAY-IN');
+      if (!m) {
+        host.innerHTML = '<div class="br-empty">Play-In match pending generation.</div>';
+        return;
+      }
+
+      const bracket = el('<div class="bracket"><svg class="bracket-canvas"></svg></div>');
+      bracket.style.gridTemplateColumns = 'auto auto';
+
+      const match = matchNode(m, '2 / 1 / 4 / 2');
+      const qualified = terminalNode('Qualified → Upper Semifinal 2', winnerTag(m), 'qualified', '2 / 2 / 3 / 3');
+      const eliminated = terminalNode('Eliminated', loserTag(m), 'out', '3 / 2 / 4 / 3');
+
+      bracket.append(
+        colTitle('Play-In (Bo3)', '1 / 1 / 2 / 2'),
+        colTitle('Outcome', '1 / 2 / 2 / 3'),
+        match, qualified, eliminated
+      );
+      host.appendChild(bracket);
+
+      drawLinks(bracket, [
+        { from: match, to: qualified, color: 'win', route: 'forward' },
+        { from: match, to: eliminated, color: 'lose', route: 'forward' }
+      ]);
     }
 
-    // 4. Render Playoffs (Double Elimination Bracket)
+    // 4. Playoffs — 4-team double elimination laid out Liquipedia style
     function renderPlayoffs() {
-      const ubContainer = document.getElementById('upperBracketContainer');
-      const lbContainer = document.getElementById('lowerBracketContainer');
-      const gfContainer = document.getElementById('grandFinalsContainer');
+      const host = document.getElementById('playoffsContainer');
+      host.innerHTML = '';
 
-      const ubSF1 = matchesData.find(m => m.matchCode === 'UB-SF1');
-      const ubSF2 = matchesData.find(m => m.matchCode === 'UB-SF2');
-      const ubFinal = matchesData.find(m => m.matchCode === 'UB-FINAL');
-      const lbR1 = matchesData.find(m => m.matchCode === 'LB-R1');
-      const lbFinal = matchesData.find(m => m.matchCode === 'LB-FINAL');
-      const gf = matchesData.find(m => m.matchCode === 'GRAND-FINALS');
+      const ubSF1 = findMatch('UB-SF1');
+      const ubSF2 = findMatch('UB-SF2');
+      const ubFinal = findMatch('UB-FINAL');
+      const lbR1 = findMatch('LB-R1');
+      const lbFinal = findMatch('LB-FINAL');
+      const gf = findMatch('GRAND-FINALS');
 
-      ubContainer.innerHTML = (createBracketCard(ubSF1) + createBracketCard(ubSF2) + createBracketCard(ubFinal)) || '---';
-      lbContainer.innerHTML = (createBracketCard(lbR1) + createBracketCard(lbFinal)) || '---';
-      gfContainer.innerHTML = createBracketCard(gf) || '---';
+      if (!ubSF1 && !ubFinal && !gf) {
+        host.innerHTML = '<div class="br-empty">Playoff bracket not generated yet.</div>';
+        return;
+      }
+
+      const bracket = el('<div class="bracket"><svg class="bracket-canvas"></svg></div>');
+      bracket.style.gridTemplateColumns = 'auto auto auto auto';
+
+      // rows: 1 titles | 2 upper band | 3-4 upper matches | 5 lower band | 6 lower matches
+      const nSF1 = matchNode(ubSF1, '3 / 1 / 4 / 2');
+      const nSF2 = matchNode(ubSF2, '4 / 1 / 5 / 2');
+      const nUBF = matchNode(ubFinal, '3 / 2 / 5 / 3');
+      const nLBR1 = matchNode(lbR1, '6 / 1 / 7 / 2');
+      const nLBF = matchNode(lbFinal, '6 / 2 / 7 / 3');
+      const nGF = matchNode(gf, '3 / 3 / 7 / 4', 'is-final');
+      const nChamp = terminalNode('Champion', winnerTag(gf), 'champ', '3 / 4 / 7 / 5');
+
+      bracket.append(
+        colTitle('Semifinals', '1 / 1 / 2 / 2'),
+        colTitle('Bracket Finals', '1 / 2 / 2 / 3'),
+        colTitle('Grand Final (Bo5)', '1 / 3 / 2 / 4'),
+        colTitle('Champion', '1 / 4 / 2 / 5'),
+        bandLabel('Upper Bracket', 'upper', '2 / 1 / 3 / 5'),
+        bandLabel('Lower Bracket — one more life', 'lower', '5 / 1 / 6 / 5')
+      );
+
+      [nSF1, nSF2, nUBF, nLBR1, nLBF, nGF, nChamp].forEach(n => n && bracket.appendChild(n));
+      host.appendChild(bracket);
+
+      drawLinks(bracket, [
+        // winners advance to the right
+        { from: nSF1, to: nUBF, color: 'win', route: 'forward' },
+        { from: nSF2, to: nUBF, color: 'win', route: 'forward' },
+        { from: nUBF, to: nGF, color: 'win', route: 'forward' },
+        { from: nLBR1, to: nLBF, color: 'win', route: 'forward' },
+        { from: nLBF, to: nGF, color: 'win', route: 'forward' },
+        { from: nGF, to: nChamp, color: 'win', route: 'forward' },
+        // losers drop down into the lower bracket
+        { from: nSF1, to: nLBR1, color: 'lose', route: 'left', gutter: 18 },
+        { from: nSF2, to: nLBR1, color: 'lose', route: 'left', gutter: 32 },
+        { from: nUBF, to: nLBF, color: 'lose', route: 'left', gutter: 18 }
+      ]);
     }
+
+    // Connector geometry depends on layout, so redraw when the viewport changes
+    let bracketResizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(bracketResizeTimer);
+      bracketResizeTimer = setTimeout(() => {
+        renderPlayIn();
+        renderPlayoffs();
+      }, 120);
+    });
 
     socket.on('teamsUpdated', () => loadAllData());
     socket.on('matchesUpdated', () => loadAllData());

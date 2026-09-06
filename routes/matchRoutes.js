@@ -27,7 +27,34 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Generate Full Tournament (10 RR Matches + Play-In + Double Elim Bracket)
+// Build a single round robin schedule with the circle method.
+// Every team meets every other team exactly once; with an odd number of teams
+// a virtual "bye" slot is added so exactly one team rests each round.
+function buildRoundRobinRounds(teamCount) {
+  const slots = [];
+  for (let i = 0; i < teamCount; i++) slots.push(i);
+  if (slots.length % 2 === 1) slots.push(null); // bye
+
+  const size = slots.length;
+  const rounds = [];
+
+  for (let r = 0; r < size - 1; r++) {
+    const pairs = [];
+    for (let i = 0; i < size / 2; i++) {
+      const home = slots[i];
+      const away = slots[size - 1 - i];
+      if (home === null || away === null) continue; // team rests this round
+      // Alternate sides per round so no team is always listed first
+      pairs.push(r % 2 === 0 ? [home, away] : [away, home]);
+    }
+    rounds.push(pairs);
+    slots.splice(1, 0, slots.pop()); // rotate, first slot pinned
+  }
+
+  return rounds;
+}
+
+// Generate Full Tournament (Round Robin + Play-In + Double Elim Bracket)
 router.post('/generate-tournament', authAdmin, async (req, res) => {
   try {
     const teams = await Team.find().sort({ seed: 1, createdAt: 1 }).limit(5);
@@ -39,23 +66,25 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
 
     const matchesToInsert = [];
 
-    // 1. 10 Bo1 Round Robin Matches
-    const rrPairs = [
-      [0, 1], [2, 4], [0, 2], [3, 1], [0, 3],
-      [4, 2], [0, 4], [1, 3], [1, 4], [2, 3]
-    ];
+    // 1. Bo1 Round Robin — every team faces every other team exactly once
+    const rrRounds = buildRoundRobinRounds(teams.length);
+    let rrMatchNumber = 0;
 
-    rrPairs.forEach((pair, idx) => {
-      matchesToInsert.push({
-        matchCode: `RR-M${idx + 1}`,
-        stage: 'ROUND_ROBIN',
-        title: `Round Robin Match ${idx + 1}`,
-        bestOf: 1,
-        teamA: teams[pair[0]] ? teams[pair[0]]._id : null,
-        teamB: teams[pair[1]] ? teams[pair[1]]._id : null,
-        scoreA: 0,
-        scoreB: 0,
-        status: 'UPCOMING'
+    rrRounds.forEach((pairs, roundIdx) => {
+      pairs.forEach(([a, b]) => {
+        rrMatchNumber++;
+        matchesToInsert.push({
+          matchCode: `RR-M${rrMatchNumber}`,
+          stage: 'ROUND_ROBIN',
+          round: roundIdx + 1,
+          title: `Round ${roundIdx + 1}: ${teams[a].tag} vs ${teams[b].tag}`,
+          bestOf: 1,
+          teamA: teams[a]._id,
+          teamB: teams[b]._id,
+          scoreA: 0,
+          scoreB: 0,
+          status: 'UPCOMING'
+        });
       });
     });
 
@@ -156,7 +185,9 @@ router.post('/generate-tournament', authAdmin, async (req, res) => {
     const io = req.app.get('io');
     if (io) io.emit('matchesUpdated');
 
-    res.json({ message: "Schedule generated with Play-In Winner vs #3 Seed!" });
+    res.json({
+      message: `Schedule generated: ${rrMatchNumber} round robin matches (each team plays every other team exactly once), Play-In, and Double Elimination playoffs.`
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
