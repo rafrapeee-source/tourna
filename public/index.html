@@ -1022,6 +1022,16 @@
       return node;
     }
 
+    // Where a connector attaches vertically. On a match box that is the middle
+    // of the two team rows, not the middle of the whole box — the header bar
+    // would otherwise push every line up into the top row.
+    function anchorY(node) {
+      const head = node.querySelector('.br-match-head');
+      const top = node.offsetTop + (head ? head.offsetHeight : 0);
+      const height = node.offsetHeight - (head ? head.offsetHeight : 0);
+      return top + height / 2;
+    }
+
     // Draw the connector lines onto the SVG that sits behind the nodes.
     // route 'forward' = elbow from the right edge into the next column;
     // route 'left'    = loser drop, routed around the left gutter.
@@ -1035,8 +1045,8 @@
 
         const from = link.from;
         const to = link.to;
-        const fromMidY = from.offsetTop + from.offsetHeight / 2;
-        const toMidY = to.offsetTop + to.offsetHeight / 2;
+        const fromMidY = anchorY(from);
+        const toMidY = anchorY(to);
 
         let d;
         if (link.route === 'left') {
